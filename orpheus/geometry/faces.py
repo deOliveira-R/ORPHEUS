@@ -9,9 +9,9 @@ two encodings of that object and the bijection between them: the pair
 It is geometry (layer DAG WP-B, 2026-10-22, ruling 1 of
 ``.claude/plans/layer_dag.md``): a face, its normal and the name of a
 coordinate axis are statements about the domain, and need no measure. Until
-2026-10-22 these names lived in ``orpheus/numerics/face_layout.py`` beside the
+2026-10-22 these names lived in ``orpheus/numerics/coproduct_layout.py`` beside the
 flat-buffer descriptor and the streaming-normal measure, which stay in numerics
-(:mod:`orpheus.numerics.face_layout`). That measure half is generic in its face
+(:mod:`orpheus.numerics.coproduct_layout`). That measure half is generic in its face
 key and does not import these names: it never reads them.
 
 :data:`AXIS_NAMES` is the ONE spelling of :math:`\mathbb{R}^3`'s axis letters
@@ -52,7 +52,7 @@ __all__ = [
 #: The letters of :math:`\mathbb{R}^3`'s coordinate axes, positional-by-axis:
 #: the single table of the axis↔letter crosswalk. Two conventions key on it.
 #: The face names ``"{axis}min"`` / ``"{axis}max"`` that
-#: :class:`~orpheus.numerics.face_layout.FaceLayout`, the trace space,
+#: :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`, the trace space,
 #: :attr:`SNProblem.bc <orpheus.sn.problem.SNProblem.bc>` and the sweep
 #: schedule key on render through it, and no consumer hand-lists
 #: ``("x", ...), ("y", ...)`` pairs (every face-name derivation,

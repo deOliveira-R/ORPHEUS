@@ -63,7 +63,7 @@ from orpheus.numerics.operator import (
     RieszRaiseOperator,
     AdjointOperator,
 )
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import DualSpace, FunctionSpace
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
@@ -337,7 +337,7 @@ def _trace_space(quadrature: Quadrature) -> AngularTraceSpace:
     ``inner_product_weights`` ``array_equal``, for both quadratures below.
     """
     n = quadrature.n_ordinates
-    layout = FaceLayout.from_named_shapes([(face, (n, 2, 3)) for face in _FACES])
+    layout = CoproductLayout.from_named_shapes([(face, (n, 2, 3)) for face in _FACES])
     return AngularTraceSpace.from_quadrature_and_layout(quadrature, layout)
 
 

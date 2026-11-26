@@ -161,7 +161,7 @@ def _uniform_flux(problem: SNProblem, value: float = 1.0) -> TimedFullField:
     )
     state.interior.values[:] = value
     for face in ("xmin", "xmax"):
-        if face in state.boundary.layout.faces:
+        if face in state.boundary.layout.blocks:
             state.boundary.face_view(face)[:] = value
     # #282 route (a) → B.2d: the CONSISTENT ψ½ seed for a per-ordinate flat
     # field is the same constant ``value`` (constant-preserving), riding the
@@ -197,7 +197,7 @@ class TestZeroInputZeroOutput:
         # = 0; at inflow positions = 0 by default.  Whole array zero.
         xmax_view = result.boundary.face_view("xmax")
         np.testing.assert_array_equal(xmax_view, np.zeros_like(xmax_view))
-        if "xmin" in result.boundary.layout.faces:
+        if "xmin" in result.boundary.layout.blocks:
             xmin_view = result.boundary.face_view("xmin")
             np.testing.assert_array_equal(xmin_view, np.zeros_like(xmin_view))
 
@@ -298,7 +298,7 @@ class TestLinearity:
             state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
             state.interior.values[:] = rng.standard_normal((N, ng, *problem.spatial_shape))
             state.boundary.face_view("xmax")[:] = rng.standard_normal((N, ng))
-            if "xmin" in state.boundary.layout.faces:
+            if "xmin" in state.boundary.layout.blocks:
                 state.boundary.face_view("xmin")[:] = rng.standard_normal((N, ng))
             return state
 
@@ -316,7 +316,7 @@ class TestLinearity:
             alpha * psi.boundary.face_view("xmax")
             + beta * phi.boundary.face_view("xmax")
         )
-        if "xmin" in sum_psi.boundary.layout.faces:
+        if "xmin" in sum_psi.boundary.layout.blocks:
             sum_psi.boundary.face_view("xmin")[:] = (
                 alpha * psi.boundary.face_view("xmin")
                 + beta * phi.boundary.face_view("xmin")
@@ -381,12 +381,12 @@ class TestOutputShape:
         # this branch silently mean "slab" for every mesh once the field
         # went away.
         if problem.is_cartesian:
-            assert "xmin" in result.boundary.layout.faces
+            assert "xmin" in result.boundary.layout.blocks
             assert result.boundary.face_view("xmin").shape == (
                 problem.quad.n_ordinates, problem.ng,
             )
         else:
-            assert "xmin" not in result.boundary.layout.faces
+            assert "xmin" not in result.boundary.layout.blocks
 
 
 # ── Pin 5: face residual zero at non-outflow ────────────────────────
@@ -428,7 +428,7 @@ class TestFaceResidualMask:
         psi.boundary.face_view("xmax")[:] = rng.standard_normal(
             (problem.quad.n_ordinates, ng),
         )
-        if "xmin" in psi.boundary.layout.faces:
+        if "xmin" in psi.boundary.layout.blocks:
             psi.boundary.face_view("xmin")[:] = rng.standard_normal(
                 (problem.quad.n_ordinates, ng),
             )

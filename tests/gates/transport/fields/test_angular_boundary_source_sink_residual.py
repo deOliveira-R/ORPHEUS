@@ -126,7 +126,7 @@ class TestConstructionInherited:
         m = _sphere_mesh()
         trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
         bf = Leaf.zeros(trace)
-        assert set(bf.layout.faces) == {"xmax"}
+        assert set(bf.layout.blocks) == {"xmax"}
 
     def test_from_face_arrays_slab(self, Leaf) -> None:
         m = slab_mesh(nx=5)
@@ -338,7 +338,7 @@ class TestPrescribedInflowGenerator:
         m = _cartesian_2d_mesh(nx=3, ny=2, ng=2)
         trace = angular_trace_space(m, posing_quadrature(m), LinearDiscontinuous())
         N = posing_quadrature(m).n_ordinates
-        slot = trace.layout.faces["xmin"].shape
+        slot = trace.layout.blocks["xmin"].shape
         assert slot == (N, 2, 2, 2), f"precondition: an LD 2-D face slot carries the transverse moment, got {slot}"
         rng = np.random.default_rng(5)
         vals = rng.uniform(0.5, 1.5, size=(N, 2, 2))  # (N, ng, ny): every entry non-zero

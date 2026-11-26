@@ -152,7 +152,7 @@ def _rand_full(sn, seed: int) -> FullField:
     f = _fresh(sn)
     rng = np.random.default_rng(seed)
     f.interior.values[:] = rng.standard_normal(f.interior.values.shape)
-    for face in sn.angular_trace.layout.faces:
+    for face in sn.angular_trace.layout.blocks:
         f.boundary.face_view(face)[:] = rng.standard_normal(
             f.boundary.face_view(face).shape
         )

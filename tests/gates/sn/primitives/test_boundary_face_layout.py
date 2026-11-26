@@ -1,6 +1,6 @@
 r"""L0 — ``SNProblem.angular_trace.layout`` (the per-geometry boundary face layout) foundation tests.
 
-Pins the per-geometry :class:`~orpheus.numerics.face_layout.FaceLayout`
+Pins the per-geometry :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`
 provider that supplies the flat layout for post-D-G pure-Field
 :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`.
 
@@ -31,7 +31,7 @@ import pytest
 
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 
@@ -96,29 +96,29 @@ class TestBoundaryFaceLayout:
         m = _slab_mesh(nx=5, ng=2)
         layout = m.angular_trace.layout
         N = m.quad.n_ordinates
-        assert isinstance(layout, FaceLayout)
-        assert set(layout.faces) == {"xmin", "xmax"}
-        assert layout.faces["xmin"].shape == (N, 2)
-        assert layout.faces["xmax"].shape == (N, 2)
+        assert isinstance(layout, CoproductLayout)
+        assert set(layout.blocks) == {"xmin", "xmax"}
+        assert layout.blocks["xmin"].shape == (N, 2)
+        assert layout.blocks["xmax"].shape == (N, 2)
         assert layout.total_size == 2 * N * 2
 
     def test_sphere_layout_has_only_xmax(self) -> None:
         m = _spherical_mesh(nx=5, ng=2)
         layout = m.angular_trace.layout
         N = m.quad.n_ordinates
-        assert set(layout.faces) == {"xmax"}
-        assert layout.faces["xmax"].shape == (N, 2)
+        assert set(layout.blocks) == {"xmax"}
+        assert layout.blocks["xmax"].shape == (N, 2)
         assert layout.total_size == N * 2
 
     def test_2d_layout_has_four_faces(self) -> None:
         m = _2d_mesh(nx=3, ny=2, ng=2)
         layout = m.angular_trace.layout
         N = m.quad.n_ordinates
-        assert set(layout.faces) == {"xmin", "xmax", "ymin", "ymax"}
-        assert layout.faces["xmin"].shape == (N, 2, 2)
-        assert layout.faces["xmax"].shape == (N, 2, 2)
-        assert layout.faces["ymin"].shape == (N, 2, 3)
-        assert layout.faces["ymax"].shape == (N, 2, 3)
+        assert set(layout.blocks) == {"xmin", "xmax", "ymin", "ymax"}
+        assert layout.blocks["xmin"].shape == (N, 2, 2)
+        assert layout.blocks["xmax"].shape == (N, 2, 2)
+        assert layout.blocks["ymin"].shape == (N, 2, 3)
+        assert layout.blocks["ymax"].shape == (N, 2, 3)
         assert layout.total_size == N * 2 * (2 * 2 + 2 * 3)
 
     def test_2d_layout_excludes_interior_cells(self) -> None:
@@ -144,7 +144,7 @@ class TestBoundaryFaceLayout:
         assert layout.total_size == x_faces + y_faces
         legacy_total = N * 2 * (3 + 1) * 2 + N * 2 * 3 * (2 + 1)
         assert layout.total_size < legacy_total, (
-            f"FaceLayout post-D-G {layout.total_size} should be smaller "
+            f"CoproductLayout post-D-G {layout.total_size} should be smaller "
             f"than pre-D-G conflated buffer total {legacy_total} — "
             f"interior cells are ephemeral local arrays in the sweep."
         )
@@ -153,8 +153,8 @@ class TestBoundaryFaceLayout:
         m = _slab_mesh()
         a = m.angular_trace.layout
         b = m.angular_trace.layout
-        assert set(a.faces) == set(b.faces)
-        for name in a.faces:
-            assert a.faces[name].shape == b.faces[name].shape
-            assert a.faces[name].offset == b.faces[name].offset
+        assert set(a.blocks) == set(b.blocks)
+        for name in a.blocks:
+            assert a.blocks[name].shape == b.blocks[name].shape
+            assert a.blocks[name].offset == b.blocks[name].offset
         assert a.total_size == b.total_size

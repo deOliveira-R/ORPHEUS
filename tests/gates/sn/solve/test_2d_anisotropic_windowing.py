@@ -253,7 +253,7 @@ def test_2d_windowed_si_reflective_trace_is_nonzero():
     # Sum |trace| over all faces; on a reflective-y problem with a non-flat
     # interior this is strictly positive.
     total_trace = 0.0
-    for face in boundary.layout.faces:
+    for face in boundary.layout.blocks:
         total_trace += float(np.sum(np.abs(boundary.face_view(face))))
     assert total_trace > 1e-6, (
         f"converged boundary trace ‖trace‖₁={total_trace:.2e} is ~0 — the "

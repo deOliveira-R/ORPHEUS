@@ -244,7 +244,7 @@ def _random_state(sn: SNProblem, *, seed: int) -> TimedFullField:
     rng = np.random.default_rng([seed, 7])
     state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space)
     state.interior.values[...] = rng.standard_normal(state.interior.values.shape)
-    for face in state.boundary.layout.faces:
+    for face in state.boundary.layout.blocks:
         fv = state.boundary.face_view(face)
         fv[...] = rng.standard_normal(fv.shape)
     return state
@@ -402,7 +402,7 @@ def test_removal_form_matvec_sweep_roundtrip(case):
     # Direction 1: apply ∘ solve = identity on a volumetric source.
     q = _random_state(sn, seed=sum(map(ord, case)) + 2)
     # Vacuum: no boundary inflow — zero the trace so q is purely volumetric.
-    for face in q.boundary.layout.faces:
+    for face in q.boundary.layout.blocks:
         q.boundary.face_view(face)[...] = 0.0
     psi = op.solve(q)
     q_back = op.apply(psi)

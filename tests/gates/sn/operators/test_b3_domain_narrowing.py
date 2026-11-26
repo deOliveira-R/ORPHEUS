@@ -207,7 +207,7 @@ class TestBitIdentityAgainstTheRetiredExpression:
         got = getattr(SNBoundaryOperator(sn), method)(psi)
         transpose = method == "apply_transpose"
         moved = 0
-        for face in sn.angular_trace.layout.faces:
+        for face in sn.angular_trace.layout.blocks:
             expected = _pre_b32_face_action(
                 _declared_axis(sn, face),
                 psi.boundary.face_view(face),
@@ -255,7 +255,7 @@ class TestBitIdentityAgainstTheRetiredExpression:
             boundary=replace(psi.boundary, values=psi.boundary.values.copy()),
         )
         touched = False
-        for face in sn.angular_trace.layout.faces:
+        for face in sn.angular_trace.layout.blocks:
             if _declared_axis(sn, face) is None:
                 continue  # vacuum's image is zero for ANY input, by design
             outflow = sn.angular_trace.outflow_indices_for_face(face)

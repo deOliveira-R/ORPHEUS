@@ -2725,7 +2725,7 @@ single attribute on the Problem.
 
 The trace's per-face slot shape is owned not by the
 :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` itself but by the
-:class:`~orpheus.numerics.face_layout.FaceLayout` it is built from, and that
+:class:`~orpheus.numerics.coproduct_layout.CoproductLayout` it is built from, and that
 layout is minted by the trace's rule and read as ``SNProblem.angular_trace.layout``.
 The widening is therefore ONE site: append the scheme's per-face transverse
 moment tail to each slot,

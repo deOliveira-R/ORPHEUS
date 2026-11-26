@@ -193,7 +193,7 @@ def _independent_trace_weights(problem) -> np.ndarray:
     w = np.asarray(quad.weights, float)
     ndim = int(problem.ndim)
     out = np.zeros(int(np.prod(problem.angular_trace.shape)))
-    for face, slot in problem.angular_trace.layout.faces.items():
+    for face, slot in problem.angular_trace.layout.blocks.items():
         axis, sign = face_normal(face)
         area = np.ones(())
         for c in (c for c in range(ndim) if c != axis):

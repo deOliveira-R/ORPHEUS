@@ -358,7 +358,7 @@ def _fdot(x, y, sn) -> float:
     EUCLIDEAN transpose-solve, so its reciprocity is metric-free (contrast the
     G-adjoint ``.H`` reciprocity in ``test_g_adjoint_reciprocity``)."""
     d = float(np.sum(np.asarray(x.interior.values) * np.asarray(y.interior.values)))
-    for face in sn.angular_trace.layout.faces:
+    for face in sn.angular_trace.layout.blocks:
         d += float(np.sum(x.boundary.face_view(face) * y.boundary.face_view(face)))
     return d
 
@@ -388,7 +388,7 @@ def test_g3_full_field_solve_reciprocity(geom):
     q, p = _fresh(sn), _fresh(sn)
     q.interior.values[:] = rng.random(q.interior.values.shape)
     p.interior.values[:] = rng.random(p.interior.values.shape)
-    for face in sn.angular_trace.layout.faces:
+    for face in sn.angular_trace.layout.blocks:
         q.boundary.face_view(face)[:] = rng.random(q.boundary.face_view(face).shape)
         p.boundary.face_view(face)[:] = rng.random(p.boundary.face_view(face).shape)
     lhs = _fdot(A.solve(q), p, sn)

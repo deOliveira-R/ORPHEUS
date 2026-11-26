@@ -81,8 +81,8 @@ class TestScalarTraceSpace:
         if ts.face_names != ("xmin", "xmax"):
             pytest.fail(f"slab faces should be (xmin, xmax); got {ts.face_names}")
         assert ts.layout is not None
-        if ts.layout.faces["xmax"].shape != (2, 2):
-            pytest.fail(f"slot shape should be (2, ng); got {ts.layout.faces['xmax'].shape}")
+        if ts.layout.blocks["xmax"].shape != (2, 2):
+            pytest.fail(f"slot shape should be (2, ng); got {ts.layout.blocks['xmax'].shape}")
         # Slab boundary areas are exactly 1 → the metric is exactly ones.
         np.testing.assert_array_equal(
             ts.inner_product_weights, np.ones(ts.shape)

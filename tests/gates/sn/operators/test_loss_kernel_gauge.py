@@ -576,7 +576,7 @@ def _uniform_source_fixture(cells, ng=2):
     for g in range(ng):
         block[:, g, ...] = per_group[g]
     exact[:n_bulk] = block.ravel()
-    for slot in mesh.angular_trace.layout.faces.values():
+    for slot in mesh.angular_trace.layout.blocks.values():
         face = np.zeros(slot.shape)
         for g in range(ng):
             face[:, g, ...] = per_group[g]

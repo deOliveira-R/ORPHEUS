@@ -424,7 +424,7 @@ plain dense arrays indexed by the batch, never per-face objects):
    substrate.
 
 This mirrored :class:`AngularBoundaryFlux`, which still uses
-``flat-buffer + FaceLayout + face_view``. The interior space was the
+``flat-buffer + CoproductLayout + face_view``. The interior space was the
 retired ``InteriorFaceSpace`` — the **layout-on-space** (A.5) sibling
 of :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` minus the
 ``omega_dot_n`` directional selectors (the interior cochain has no

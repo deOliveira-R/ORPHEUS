@@ -3,7 +3,7 @@ r"""Pure-Field :class:`AngularBoundaryFlux` — boundary trace on a flat layout.
 L2 typed wrapper for the angular flux at the SN domain boundary,
 inheriting :class:`~orpheus.transport.fields._bases.AngularBoundaryField`.
 Storage is a SINGLE flat backing buffer; per-face access goes through a
-:class:`~orpheus.numerics.face_layout.FaceLayout` descriptor (carried by
+:class:`~orpheus.numerics.coproduct_layout.CoproductLayout` descriptor (carried by
 the :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` since A.5)
 that maps face names to ``(offset, shape)`` slice views — no copies.
 
@@ -30,7 +30,7 @@ Post-D-G this class:
   write-through pattern (sweep's persistent BC state) is replaced by
   sweep-side EPHEMERAL local arrays + functional reconstruction at
   iteration boundaries.
-* **Carries face geometry via** :class:`~orpheus.numerics.face_layout.FaceLayout`
+* **Carries face geometry via** :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`
   **on the** :class:`AngularTraceSpace` **(A.5)**, not as a separate field
   attribute. ``mesh.angular_trace`` is the cached source; the underlying
   per-geometry descriptor is still
@@ -102,7 +102,7 @@ class AngularBoundaryFlux(AngularBoundaryField):  # concept: fluxsrc | role: twi
         The unified boundary
         :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` — the
         L1 space anchor (Euclidean inner product) that also carries the
-        per-geometry :class:`~orpheus.numerics.face_layout.FaceLayout`.
+        per-geometry :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`.
         Canonically the mesh's cached
         :attr:`~orpheus.sn.problem.SNProblem.angular_trace`.
 
@@ -156,7 +156,7 @@ class AngularBoundaryFlux(AngularBoundaryField):  # concept: fluxsrc | role: twi
         view = self.face_view(face)  # validates the face name
         space = self.space
         row = space.omega_dot_n[space.face_names.index(face)]
-        slot = space.layout.faces[face]
+        slot = space.layout.blocks[face]
         metric = space.partial_current_metric[
             slot.offset : slot.offset + slot.flat_size
         ].reshape(slot.shape)

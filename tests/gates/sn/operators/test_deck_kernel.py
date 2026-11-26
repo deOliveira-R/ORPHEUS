@@ -52,7 +52,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import AngularTraceSpace
 from orpheus.sn.boundary.realized_operators import ScaledOrdinatePermutation
@@ -118,7 +118,7 @@ _ROTATION_NONTRIVIAL_LOCAL = [
 
 
 def _trace(quad: Quadrature, faces) -> AngularTraceSpace:
-    layout = FaceLayout.from_named_shapes(
+    layout = CoproductLayout.from_named_shapes(
         [(f, (int(quad.n_ordinates), _NG)) for f in faces]
     )
     return AngularTraceSpace.from_quadrature_and_layout(quad, layout)

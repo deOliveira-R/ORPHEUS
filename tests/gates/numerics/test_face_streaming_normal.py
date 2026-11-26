@@ -28,7 +28,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.face_measure import face_streaming_normal
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
@@ -48,8 +48,8 @@ def _inline_partial_current(space: AngularTraceSpace, quad: Quadrature) -> np.nd
     layout = space.layout
     ref = np.zeros((int(layout.total_size),), dtype=float)
     w = np.asarray(quad.weights, dtype=float)
-    for f_idx, face in enumerate(layout.faces):
-        slot = layout.faces[face]
+    for f_idx, face in enumerate(layout.blocks):
+        slot = layout.blocks[face]
         face_w = np.abs(space.omega_dot_n[f_idx]) * w
         face_w_axis0 = face_w.reshape((face_w.shape[0],) + (1,) * (len(slot.shape) - 1))
         flat_face = np.broadcast_to(face_w_axis0, slot.shape).reshape(-1)
@@ -58,7 +58,7 @@ def _inline_partial_current(space: AngularTraceSpace, quad: Quadrature) -> np.nd
 
 
 def _slab(quad: Quadrature, ng: int = 2) -> AngularTraceSpace:
-    layout = FaceLayout.from_named_shapes(
+    layout = CoproductLayout.from_named_shapes(
         [("xmin", (quad.n_ordinates, ng)), ("xmax", (quad.n_ordinates, ng))]
     )
     return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
@@ -138,7 +138,7 @@ class TestKernelActuallyExecuted:
         monkeypatch.setattr(ats_mod, "face_streaming_normal", wrapped)
         AngularTraceSpace.from_quadrature_and_layout(
             Quadrature.gauss_legendre(8),
-            FaceLayout.from_named_shapes([("xmax", (8, 2))]),
+            CoproductLayout.from_named_shapes([("xmax", (8, 2))]),
         )
         if len(calls) == 0:
             pytest.fail(

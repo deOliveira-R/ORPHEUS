@@ -184,11 +184,11 @@ class TestTheInstrumentHasTeeth:
     def test_a_target_imported_from_elsewhere_is_ALIVE(self) -> None:
         """Why relative resolution works at all: ``import`` IS the declaration.
 
-        ``face_layout`` does not define ``Hashable``; it imports it. So the name
+        ``coproduct_layout`` does not define ``Hashable``; it imports it. So the name
         is bound on the module and ``getattr`` finds it — which is exactly why
         this tool can read relative prose without emulating Sphinx.
         """
-        verdict = judge("Hashable", ("orpheus.numerics.face_layout",))
+        verdict = judge("Hashable", ("orpheus.numerics.coproduct_layout",))
         assert verdict.outcome is Outcome.ALIVE, verdict
 
     @pytest.mark.parametrize(
@@ -308,7 +308,7 @@ class TestTheEmptyNamespacePackageIsNotAModule:
         assert resolve("tests.gates.geometry") == (True, None)
 
     def test_an_ordinary_module_is_untouched(self) -> None:
-        import orpheus.numerics.face_layout as module
+        import orpheus.numerics.coproduct_layout as module
 
         assert module.__file__ is not None
         assert not _is_empty_namespace_package(module)
@@ -317,7 +317,7 @@ class TestTheEmptyNamespacePackageIsNotAModule:
 class TestTheTwoHalvesOfTheInterlock:
     """``#:`` scanning and ``self.X: T`` resolution are one change, not two.
 
-    ``orpheus/geometry/faces.py`` (the ``AXIS_NAMES`` block; ``numerics/face_layout.py``
+    ``orpheus/geometry/faces.py`` (the ``AXIS_NAMES`` block; ``numerics/coproduct_layout.py``
     until layer DAG WP-B, 2026-10-22) cites
     ``:attr:`SNProblem.bc <…augmented_mesh.SNProblem.bc>``` from inside a ``#:``
     attribute-comment block, and ``SNProblem`` sets ``self.bc: dict[...] = ...``
@@ -421,7 +421,7 @@ class TestTheTargetIsReadTheWaySphinxReadsIt:
         [
             "solve_galerkin_spectral_slab(c=..., d=...)",  # a signature, not a path
             "CellsByCount(n_cells, EqualVolume())",
-            "FaceLayout[tuple[int, int, str]]",  # a subscripted generic
+            "CoproductLayout[tuple[int, int, str]]",  # a subscripted generic
             "",
             # ⭐ The case that corrected the implementation. A phrase separated
             # by SPACES is not a wrap, and collapsing it yields

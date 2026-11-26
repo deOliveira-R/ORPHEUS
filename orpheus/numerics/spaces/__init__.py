@@ -12,7 +12,7 @@ subclasses that carry domain-specific metadata beyond
   ``SphericalHarmonicSpace`` / ``LegendreSpace`` classes retired).
 
 * :class:`AngularTraceSpace` (#205 / #201 unification) — the single
-  whole-boundary trace function space. Carries the :class:`FaceLayout`
+  whole-boundary trace function space. Carries the :class:`CoproductLayout`
   + the signed :math:`\Omega\cdot\hat n` per face; inflow / outflow are
   *selectors* over it (no longer separate ``Inflow`` / ``Outflow``
   subclasses).

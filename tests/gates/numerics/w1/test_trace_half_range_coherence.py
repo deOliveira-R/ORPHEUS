@@ -29,7 +29,7 @@ _ROOT = Path(__file__).resolve().parents[4]
 
 CODE = r"""
 import dataclasses
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import AngularTraceSpace
 from orpheus.numerics.tangential import HalfRange
@@ -37,7 +37,7 @@ from orpheus.numerics.declaration import Coord
 
 quad = Quadrature.product(4, 4)
 n = int(quad.n_ordinates)
-layout = FaceLayout.from_named_shapes([("xmin", (n, 2)), ("xmax", (n, 2))])
+layout = CoproductLayout.from_named_shapes([("xmin", (n, 2)), ("xmax", (n, 2))])
 t = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 short = HalfRange(Coord(3, (0,)), Coord(3, (1,)), Coord(3, (2,)), 3)
 cases = (

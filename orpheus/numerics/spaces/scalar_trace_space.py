@@ -29,7 +29,7 @@ the albedo family :math:`J^- = \mathcal{A}\,J^+` (see
 ``omega_dot_n`` table and quadrature coupling are SN's type-safety — making
 them optional to admit a scalar realization would let an SN boundary field
 be built on a table-less space (an illegal state the current type forbids).
-The two traces share only the :class:`~orpheus.numerics.face_layout.FaceLayout`
+The two traces share only the :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`
 flat-buffer discipline, which lives one level down and is reused unchanged.
 
 **Metric.** The inner-product weight is the boundary face AREA (slab 1,
@@ -48,7 +48,7 @@ from typing import ClassVar, Mapping, Optional, Sequence
 
 import numpy as np
 
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.space import FunctionSpace
 
 
@@ -73,7 +73,7 @@ class ScalarTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: sp
         ``name`` is ``"scalar_trace"``, ``shape`` the whole-boundary flat
         shape ``(layout.total_size,)``, and the metric the per-face AREA
         broadcast over each slot (see module docstring).
-    layout : FaceLayout
+    layout : CoproductLayout
         The flat-buffer descriptor (which faces exist, per-face shapes,
         offsets). ``compare=False`` leaf-data — identity stays
         ``(name, shape)``, matching the angular ``AngularTraceSpace`` convention.
@@ -87,7 +87,7 @@ class ScalarTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: sp
     OUTFLOW_ROW: ClassVar[int] = 0
     INFLOW_ROW: ClassVar[int] = 1
 
-    layout: Optional[FaceLayout[str]] = field(
+    layout: Optional[CoproductLayout[str]] = field(
         default=None, kw_only=True, repr=False, compare=False,
     )
 
@@ -96,10 +96,10 @@ class ScalarTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: sp
         """Ordered face names (flat-buffer concatenation order)."""
         if self.layout is None:
             raise RuntimeError(
-                "ScalarTraceSpace has no FaceLayout; build it via "
+                "ScalarTraceSpace has no CoproductLayout; build it via "
                 "ScalarTraceSpace.for_faces, not the bare constructor."
             )
-        return tuple(self.layout.faces)
+        return tuple(self.layout.blocks)
 
     @classmethod
     def for_faces(
@@ -141,9 +141,9 @@ class ScalarTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: sp
         named_shapes = [
             (name, (2, int(ng), *face_spatial)) for name, face_spatial in faces
         ]
-        layout = FaceLayout.from_named_shapes(named_shapes)
+        layout = CoproductLayout.from_named_shapes(named_shapes)
         weights = np.zeros((int(layout.total_size),), dtype=float)
-        for name, slot in layout.faces.items():
+        for name, slot in layout.blocks.items():
             area = float(face_areas[name])
             if area <= 0.0:
                 raise ValueError(

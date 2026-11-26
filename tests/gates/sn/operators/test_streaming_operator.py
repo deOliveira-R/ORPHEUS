@@ -433,7 +433,7 @@ class TestCompositeInvariants:
         layout = out_composite.boundary.layout
         face_max = max(
             float(np.abs(out_composite.boundary.face_view(face)).max())
-            for face in layout.faces
+            for face in layout.blocks
         )
         assert face_max > 1e-12, (
             f"L's composite boundary face residual is ~0 "

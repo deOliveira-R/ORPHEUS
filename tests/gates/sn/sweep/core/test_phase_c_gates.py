@@ -174,7 +174,7 @@ def _build_composite(
         boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
     else:
         # A.5: the AngularBoundaryFlux space IS the mesh's unified AngularTraceSpace
-        # (it carries the FaceLayout); no ad-hoc sn_boundary_flat build.
+        # (it carries the CoproductLayout); no ad-hoc sn_boundary_flat build.
         boundary = AngularBoundaryFlux(
             values=boundary_values, space=problem.angular_trace,
         )

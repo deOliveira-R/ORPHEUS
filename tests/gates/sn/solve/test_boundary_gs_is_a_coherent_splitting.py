@@ -180,8 +180,8 @@ def test_the_gauss_seidel_inverse_is_exact_on_the_DRIVER_RHS_subspace():
     omega_dot_n = np.asarray(problem.angular_trace.omega_dot_n)
     layout = problem.angular_trace.layout
     outflow = np.zeros(n_dof, dtype=bool)
-    for index, face in enumerate(layout.faces):
-        slot = layout.faces[face]
+    for index, face in enumerate(layout.blocks):
+        slot = layout.blocks[face]
         per_ordinate = int(np.prod(slot.shape[1:]))
         for ordinate in range(slot.shape[0]):
             if omega_dot_n[index, ordinate] > 0:

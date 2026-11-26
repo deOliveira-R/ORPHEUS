@@ -142,7 +142,7 @@ from typing import TYPE_CHECKING, Callable, Mapping, Optional
 import numpy as np
 from scipy import sparse
 
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
@@ -220,8 +220,8 @@ def _boundary_closure(
     return 1.0 / (rho + 2.0), (rho - 2.0) / (rho + 2.0)
 
 
-def _require_trace_layout(space: ScalarTraceSpace) -> FaceLayout[str]:
-    r"""The trace's :class:`~orpheus.numerics.face_layout.FaceLayout`, guarded.
+def _require_trace_layout(space: ScalarTraceSpace) -> CoproductLayout[str]:
+    r"""The trace's :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`, guarded.
 
     ``layout`` is an optional dataclass field (the ``compare=False``
     convention); a trace built by :meth:`ScalarTraceSpace.for_faces` — the
@@ -229,27 +229,27 @@ def _require_trace_layout(space: ScalarTraceSpace) -> FaceLayout[str]:
     bare-constructor footgun (the ``face_names`` guard's sibling)."""
     if space.layout is None:
         raise RuntimeError(
-            "ScalarTraceSpace has no FaceLayout; build it via "
+            "ScalarTraceSpace has no CoproductLayout; build it via "
             "ScalarTraceSpace.for_faces, not the bare constructor."
         )
     return space.layout
 
 
 def _trace_dof_columns(
-    n_interior: int, layout: FaceLayout[str], face: str, row: int, ng: int,
+    n_interior: int, layout: CoproductLayout[str], face: str, row: int, ng: int,
 ) -> np.ndarray:
     r"""Flat composite DOF indices of one trace component row on ``face``.
 
     The single spelling of the trace half of the global DOF numbering
     (crosswalk "Global DOF numbering"): the composite flat vector is
     ``[bulk C-ravel | trace buffer]``, and a face's ``(2, ng)`` slot sits
-    at its :class:`FaceLayout` offset with component-major C-order — so
+    at its :class:`CoproductLayout` offset with component-major C-order — so
     component ``row`` (:attr:`ScalarTraceSpace.OUTFLOW_ROW` = J⁺ /
     ``INFLOW_ROW`` = J⁻), group ``g`` lives at
     ``n_interior + offset(face) + row·ng + g``. Returns the ``(ng,)`` index
     vector for all groups of that component.
     """
-    return n_interior + layout.faces[face].offset + row * ng + np.arange(ng)
+    return n_interior + layout.blocks[face].offset + row * ng + np.arange(ng)
 
 
 @dataclass(frozen=True)

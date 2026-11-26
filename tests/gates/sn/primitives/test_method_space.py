@@ -19,7 +19,7 @@ import dataclasses
 import numpy as np
 import pytest
 
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.sn.mesh.method_space import SNMethodSpace
@@ -29,7 +29,7 @@ pytestmark = pytest.mark.l0
 
 
 def _trace(quad, faces=("xmin", "xmax")) -> AngularTraceSpace:
-    layout = FaceLayout.from_named_shapes([(f, (quad.n_ordinates, 1)) for f in faces])
+    layout = CoproductLayout.from_named_shapes([(f, (quad.n_ordinates, 1)) for f in faces])
     return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 
 

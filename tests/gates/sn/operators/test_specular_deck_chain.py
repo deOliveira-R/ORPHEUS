@@ -104,7 +104,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.elementary_operators import PermutationOperator
 from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
@@ -152,7 +152,7 @@ def _fixture(case: str):
     """``(quad, trace, method_space, gamma_out, P, axis, face)`` for a case."""
     factory, face, axis = _CASES[case]
     quad = factory()
-    layout = FaceLayout.from_named_shapes(
+    layout = CoproductLayout.from_named_shapes(
         [("xmin", (int(quad.n_ordinates), _NG)), ("xmax", (int(quad.n_ordinates), _NG))]
     )
     trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
@@ -574,7 +574,7 @@ def test_the_unbound_twin_is_the_control_of_every_refusal() -> None:
     itself, so every refusal in this module is attributable to the bound spaces, never to the permutation.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    layout = FaceLayout.from_named_shapes(
+    layout = CoproductLayout.from_named_shapes(
         [("xmin", (int(quad.n_ordinates), _NG)), ("xmax", (int(quad.n_ordinates), _NG))]
     )
     bound_trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
@@ -605,7 +605,7 @@ def test_the_realized_operator_carries_the_binding() -> None:
     outside the binding gates.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    layout = FaceLayout.from_named_shapes(
+    layout = CoproductLayout.from_named_shapes(
         [("xmin", (int(quad.n_ordinates), _NG)), ("xmax", (int(quad.n_ordinates), _NG))]
     )
     trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)

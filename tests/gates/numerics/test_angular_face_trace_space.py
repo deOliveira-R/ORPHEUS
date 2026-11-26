@@ -28,7 +28,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.elementary_operators import TraceRestrictionOperator
 from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
@@ -80,7 +80,7 @@ def _trace(name: str, ng: int = 2) -> AngularTraceSpace:
     ownership work. Mirrors the slab arm of ``SNProblem.angular_trace.layout``.
     """
     quad = _QUADRATURES[name]()
-    layout = FaceLayout.from_named_shapes(
+    layout = CoproductLayout.from_named_shapes(
         [("xmin", (int(quad.n_ordinates), ng)), ("xmax", (int(quad.n_ordinates), ng))]
     )
     return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
@@ -420,7 +420,7 @@ def _trace_2d(quad_name: str, ng: int = 2) -> AngularTraceSpace:
     n = int(quad.n_ordinates)
     return AngularTraceSpace.from_quadrature_and_layout(
         quad,
-        FaceLayout.from_named_shapes(
+        CoproductLayout.from_named_shapes(
             [("xmin", (n, ng, 5)), ("xmax", (n, ng, 5)),
              ("ymin", (n, ng, 7)), ("ymax", (n, ng, 7))]
         ),
@@ -1082,7 +1082,7 @@ def test_trace_role_names_the_ladder():
         lambda: Quadrature.lebedev(order=17),
     ):
         quad = factory()
-        layout = FaceLayout.from_named_shapes(
+        layout = CoproductLayout.from_named_shapes(
             [("xmin", (int(quad.n_ordinates), 2)), ("xmax", (int(quad.n_ordinates), 2))]
         )
         trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)

@@ -980,7 +980,7 @@ class TestTheReturnedTrace:
             float(np.max(np.abs(
                 reflected.face_view(face)[_trace.inflow_indices_for_face(face)]
             )))
-            for face in reflected.layout.faces
+            for face in reflected.layout.blocks
         )
         residual = float(np.max(np.abs(got - want))) / scale
 

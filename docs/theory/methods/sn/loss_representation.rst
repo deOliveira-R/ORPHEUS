@@ -3474,7 +3474,7 @@ from the bulk:
   (cells) and
   :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicBoundarySpace`
   (the :math:`r = R` corner) — deliberately mirrors the spatial trace's
-  flat-buffer :class:`~orpheus.numerics.face_layout.FaceLayout` discipline
+  flat-buffer :class:`~orpheus.numerics.coproduct_layout.CoproductLayout` discipline
   (typed ``(level, sign)`` views in place of ``FaceLabel`` views).
 * **Its metric is a STATE metric, not the through-flux.**  ψ½ is a
   first-class radial state field, so its Hilbert metric is the SPD radial
@@ -3518,7 +3518,7 @@ rather than a forced one.
    **exists** (commit ``4081c0d``) — the split ψ½ leaves
    (``RadialCharacteristicInteriorField`` / ``RadialCharacteristicBoundaryField``,
    the ``interior ⊕ boundary`` loci) and the spatial-trace boundary
-   families are its subclasses, sharing the flat-buffer ``FaceLayout``
+   families are its subclasses, sharing the flat-buffer ``CoproductLayout``
    discipline instead of hand-copying it.  (Since 4e-e1b the name
    ``RadialCharacteristicField`` denotes the **composite** that binds those
    two leaves — System B's carrier — **not** a ``FaceField`` subclass.)  The
@@ -3546,7 +3546,7 @@ rather than a forced one.
    **split** ψ½ family
    (:class:`~orpheus.transport.fields._bases.RadialCharacteristicInteriorField`
    / :class:`~orpheus.transport.fields._bases.RadialCharacteristicBoundaryField`)
-   are all its subclasses, inheriting the flat-buffer ``FaceLayout``
+   are all its subclasses, inheriting the flat-buffer ``CoproductLayout``
    discipline once instead of hand-copying it.  The two 2-block **carriers**
    (System A's ``FullField``, System B's ``RadialCharacteristicField``) are
    ``Composite`` products of those leaves — **not** ``FaceField``
@@ -3562,7 +3562,7 @@ rather than a forced one.
        ├── FullField                 = Composite[BulkField, BoundaryField]                        (System A)
        └── RadialCharacteristicField  = Composite[…InteriorField, …BoundaryField]   (System B — ψ½ carrier, reminted 4e-e1b)
 
-   ``FaceField`` owns the ``FaceLayout`` flat-buffer discipline **once**,
+   ``FaceField`` owns the ``CoproductLayout`` flat-buffer discipline **once**,
    so the face families are no longer siblings-by-accident.  It unifies
    **structure only** — the metric stays per-leaf (next note).
 

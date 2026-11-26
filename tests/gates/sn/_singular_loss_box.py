@@ -264,8 +264,8 @@ def tangential_dof_count(problem) -> int:
     omega_dot_n = problem.angular_trace.omega_dot_n
     layout = problem.angular_trace.layout
     total = 0
-    for index, face in enumerate(layout.faces):
-        slot = layout.faces[face]
+    for index, face in enumerate(layout.blocks):
+        slot = layout.blocks[face]
         per_ordinate = int(np.prod(slot.shape[1:]))
         total += int(np.sum(omega_dot_n[index] == 0.0)) * per_ordinate
     return total
@@ -297,7 +297,7 @@ def uniform_source_fixture(cells, ng: int = 2):
     for group in range(ng):
         block[:, group, ...] = per_group[group]
     exact[:n_bulk] = block.ravel()
-    for slot in problem.angular_trace.layout.faces.values():
+    for slot in problem.angular_trace.layout.blocks.values():
         face = np.zeros(slot.shape)
         for group in range(ng):
             face[:, group, ...] = per_group[group]

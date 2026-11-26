@@ -33,7 +33,7 @@ import math
 import numpy as np
 import pytest
 
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.transport.phase_spaces import angular_bulk_space, angular_face_layout, angular_trace_space, scalar_trace_space
@@ -77,9 +77,9 @@ def _schemes(name: str):
     return [DiamondDifference()] + ([] if name in _CURVED else [LinearDiscontinuous()])
 
 
-def _hand_layout(name: str, mesh, quadrature, scheme) -> FaceLayout:
+def _hand_layout(name: str, mesh, quadrature, scheme) -> CoproductLayout:
     tail = (2,) if (isinstance(scheme, LinearDiscontinuous) and mesh.ndim == 2) else ()
-    return FaceLayout.from_named_shapes(
+    return CoproductLayout.from_named_shapes(
         [(face, (quadrature.n_ordinates, mesh.ng, *shape, *tail)) for face, shape in _HAND_FACES[name]]
     )
 
@@ -165,8 +165,8 @@ def test_the_face_layout_is_the_hand_layout(geometry: str, scheme_name: str) -> 
     mesh, quadrature, scheme = _case(geometry, scheme_name)
     got = angular_face_layout(mesh, quadrature, scheme)
     expected = _hand_layout(geometry, mesh, quadrature, scheme)
-    got_slots = [(key, slot.shape) for key, slot in got.faces.items()]
-    expected_slots = [(key, slot.shape) for key, slot in expected.faces.items()]
+    got_slots = [(key, slot.shape) for key, slot in got.blocks.items()]
+    expected_slots = [(key, slot.shape) for key, slot in expected.blocks.items()]
     # per-slot SHAPES in order: ``structure`` holds (key, offset, size) only, blind to a transposed slot of one size
     if got_slots != expected_slots:
         pytest.fail(f"{geometry}/{scheme_name}: layout {got_slots}, the hand layout {expected_slots}")

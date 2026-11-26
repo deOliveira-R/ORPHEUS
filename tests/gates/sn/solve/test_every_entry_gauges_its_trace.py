@@ -141,7 +141,7 @@ def _currents(solution, problem) -> dict[tuple[str, str], float]:
     cosines = {0: np.asarray(problem.quad.mu_x, dtype=float),
                1: np.asarray(problem.quad.mu_y, dtype=float)}
     out: dict[tuple[str, str], float] = {}
-    for face, slot in problem.angular_trace.layout.faces.items():
+    for face, slot in problem.angular_trace.layout.blocks.items():
         axis, _ = face_normal(face)
         per_ordinate = slot.slice_view(trace).reshape(slot.shape[0], -1).sum(1)
         for component in (0, 1):
@@ -394,8 +394,8 @@ def test_every_MIRROR_EVEN_functional_is_blind_to_the_gauge():
     assert np.linalg.norm(kernel_member) > 1e-6, "degenerate: nothing in ker A"
     other_member = gauged + kernel_member
 
-    for face, slot in problem.angular_trace.layout.faces.items():
-        face_index = list(problem.angular_trace.layout.faces).index(face)
+    for face, slot in problem.angular_trace.layout.blocks.items():
+        face_index = list(problem.angular_trace.layout.blocks).index(face)
         normal = np.abs(
             np.asarray(problem.angular_trace.omega_dot_n)[face_index])
         before = slot.slice_view(other_member).reshape(slot.shape[0], -1).sum(1)

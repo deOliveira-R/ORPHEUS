@@ -60,7 +60,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.geometry.faces import face_opposite
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import AngularTraceSpace
@@ -188,7 +188,7 @@ class _Lambertian:
 
 def _trace(quad: Quadrature, faces) -> AngularTraceSpace:
     """The production trace space over ``faces``, one slot of ``_NG`` groups."""
-    layout = FaceLayout.from_named_shapes(
+    layout = CoproductLayout.from_named_shapes(
         [(f, (int(quad.n_ordinates), _NG)) for f in faces]
     )
     return AngularTraceSpace.from_quadrature_and_layout(quad, layout)

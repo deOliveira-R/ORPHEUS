@@ -692,7 +692,7 @@ The concepts
      - W1
      - O29
      - missing
-       arms: ``CellLayout`` (``orpheus/numerics/coefficient_layout.py``), ``HarmonicLayout`` (``orpheus/numerics/coefficient_layout.py``), ``LegendreLayout`` (``orpheus/numerics/coefficient_layout.py``), ``ModeLayout`` (``orpheus/numerics/coefficient_layout.py``), ``PolynomialLayout`` (``orpheus/numerics/coefficient_layout.py``), ``TensorLayout`` (``orpheus/numerics/coefficient_layout.py``), ``FaceLayout`` (``orpheus/numerics/face_layout.py``)
+       arms: ``CellLayout`` (``orpheus/numerics/coefficient_layout.py``), ``HarmonicLayout`` (``orpheus/numerics/coefficient_layout.py``), ``LegendreLayout`` (``orpheus/numerics/coefficient_layout.py``), ``ModeLayout`` (``orpheus/numerics/coefficient_layout.py``), ``PolynomialLayout`` (``orpheus/numerics/coefficient_layout.py``), ``TensorLayout`` (``orpheus/numerics/coefficient_layout.py``), ``CoproductLayout`` (``orpheus/numerics/coproduct_layout.py``)
      - arm 7, part 1
      - - :ref:`spaces-moment-head <spaces-moment-head>`
    * - :ref:`locate <concept-locate>`
@@ -2093,11 +2093,11 @@ layout
 - ``ModeLayout`` (``orpheus/numerics/coefficient_layout.py``) ``set``
 - ``PolynomialLayout`` (``orpheus/numerics/coefficient_layout.py``) ``set``
 - ``TensorLayout`` (``orpheus/numerics/coefficient_layout.py``) ``set``
-- ``FaceLayout`` (``orpheus/numerics/face_layout.py``) ``set``
+- ``CoproductLayout`` (``orpheus/numerics/coproduct_layout.py``) ``set``
 
 .. rubric:: part
 
-- ``FaceSlot`` (``orpheus/numerics/face_layout.py``) ``set``
+- ``LayoutBlock`` (``orpheus/numerics/coproduct_layout.py``) ``set``
 
 .. _concept-locate:
 

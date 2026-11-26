@@ -100,7 +100,7 @@ def _moment_composite(problem, L: int, *, seed: int = 4) -> TimedFullField:
     )
     interior.values[...] = np.random.default_rng(seed).standard_normal(interior.values.shape)
     boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
-    for face in boundary.layout.faces:
+    for face in boundary.layout.blocks:
         view = boundary.face_view(face)
         view[...] = np.random.default_rng(seed + 5).standard_normal(view.shape)
     return TimedFullField(interior=interior, boundary=boundary, _history=(), history_depth=0)

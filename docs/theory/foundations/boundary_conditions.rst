@@ -4137,7 +4137,7 @@ read
 
    return {
        face: self.problem.bc[face]
-       for face in self.problem.angular_trace.layout.faces
+       for face in self.problem.angular_trace.layout.blocks
    }
 
 — every face in the trace layout, with **no** role filter.
@@ -6382,7 +6382,7 @@ projection is not constructible.
 
 **Geometry-blind, layout-driven (post Issue #225 / C5.3).** The factory
 is **geometry-blind**: it takes only the angular quadrature and a
-:class:`~orpheus.numerics.face_layout.FaceLayout` (canonically
+:class:`~orpheus.numerics.coproduct_layout.CoproductLayout` (canonically
 ``SNProblem.angular_trace.layout``), and
 reads every datum from those two — the layout's ``"{axis}{min|max}"``
 face names imply axis-aligned outward normals, so the
@@ -7972,7 +7972,7 @@ The standard Marshak boundary (Bell & Glasstone 1970 §1.5), a mix of specular r
    import numpy as np
 
    from orpheus.geometry import CoordSystem
-   from orpheus.numerics.face_layout import FaceLayout
+   from orpheus.numerics.coproduct_layout import CoproductLayout
    from orpheus.numerics.quadrature import Quadrature
    from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
    from orpheus.sn.boundary.realizer import SN_REALIZERS
@@ -7987,7 +7987,7 @@ The standard Marshak boundary (Bell & Glasstone 1970 §1.5), a mix of specular r
 
    # Realize it on the face xmax of a slab, through the SN table.
    quad = Quadrature.lebedev(17)
-   layout = FaceLayout.from_named_shapes([(f, (int(quad.n_ordinates),)) for f in ("xmin", "xmax")])
+   layout = CoproductLayout.from_named_shapes([(f, (int(quad.n_ordinates),)) for f in ("xmin", "xmax")])
    space = SNMethodSpace(quadrature=quad, trace=AngularTraceSpace.from_quadrature_and_layout(quad, layout))
    site = FaceSite("xmax", CoordSystem.CARTESIAN, 1)
    op = SN_REALIZERS.realize(marshak, site, space)
@@ -8154,7 +8154,7 @@ A usage block exercising the door at its refusals and at the two ``TypeError`` b
    from orpheus.diffusion.zero_flux import ZeroFluxCondition
    from orpheus.geometry import CoordSystem
    from orpheus.geometry.deck import MirrorDeck
-   from orpheus.numerics.face_layout import FaceLayout
+   from orpheus.numerics.coproduct_layout import CoproductLayout
    from orpheus.numerics.quadrature import Quadrature
    from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
    from orpheus.sn.boundary.realizer import SN_REALIZERS
@@ -8162,7 +8162,7 @@ A usage block exercising the door at its refusals and at the two ``TypeError`` b
    from orpheus.transport.boundary_conditions import BoundaryRefused, FaceSite, WallCondition
 
    quad = Quadrature.lebedev(17)
-   layout = FaceLayout.from_named_shapes([(f, (int(quad.n_ordinates),)) for f in ("xmin", "xmax")])
+   layout = CoproductLayout.from_named_shapes([(f, (int(quad.n_ordinates),)) for f in ("xmin", "xmax")])
    space = SNMethodSpace(quadrature=quad, trace=AngularTraceSpace.from_quadrature_and_layout(quad, layout))
    site = FaceSite("xmax", CoordSystem.CARTESIAN, 1)
 
@@ -9385,7 +9385,7 @@ Three SN-side structures key on the same boundary-face string names
      - Role
    * - **Face layout**
      - ``SNProblem.angular_trace.layout``
-       (:class:`~orpheus.numerics.face_layout.FaceLayout`)
+       (:class:`~orpheus.numerics.coproduct_layout.CoproductLayout`)
      - The flat-buffer descriptor: which faces exist, each face's
        per-face shape ``(N, ng, *codim-1 cells)``, and the offsets
        that pack them into one backing array.
@@ -9394,7 +9394,7 @@ Three SN-side structures key on the same boundary-face string names
        (:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`)
      - The inner-product geometry on the boundary: per-face
        inflow / outflow ordinate masks over the signed
-       :math:`\Omega\cdot\hat n` it carries (``trace.layout.faces``
+       :math:`\Omega\cdot\hat n` it carries (``trace.layout.blocks``
        reproduces the same names).
    * - **BC dict**
      - :attr:`SNProblem.bc`
@@ -9450,7 +9450,7 @@ per face by ``resolve_boundary_conditions``.)
    (then ``orpheus.transport.mesh.axis``, now :mod:`orpheus.mesh.axis`) in
    C4 — to the bottom of the SN dependency graph, next to the axis
    primitives it names; a later step moved it down again, to
-   :mod:`orpheus.numerics.face_layout` (below), and since layer DAG WP-B
+   :mod:`orpheus.numerics.coproduct_layout` (below), and since layer DAG WP-B
    (2026-10-22) it lives in :mod:`orpheus.geometry.faces`, from which the
    axis module re-exports it. ``sweep_graph`` re-exported it only outward;
    ``sweep_schedule`` and ``loss_representation`` now import it
@@ -9587,7 +9587,7 @@ the problem built with
    # orpheus/transport/phase_spaces.py — angular_face_layout
    n_ordinates = quadrature.n_ordinates
    moment_tail = factor_tail(scheme.face_moment_count(mesh.ndim))
-   return FaceLayout.from_named_shapes([
+   return CoproductLayout.from_named_shapes([
        (label.face_name, (n_ordinates, mesh.ng, *shape, *moment_tail))
        for label, shape in trace_face_shapes(mesh.axes)
    ])
@@ -9725,8 +9725,8 @@ Why string-keyed, not FaceLabel-keyed
 Issue #220 allowed either a ``dict[str, ...]`` keyed by face name or
 a ``dict[FaceLabel, ...]`` keyed by the structural label directly.
 C4 chose **string-keyed**, isomorphic to
-:attr:`FaceLayout.faces <orpheus.numerics.face_layout.FaceLayout>`,
-for one reason: **every consumer iterates ``trace.layout.faces``
+:attr:`CoproductLayout.faces <orpheus.numerics.coproduct_layout.CoproductLayout>`,
+for one reason: **every consumer iterates ``trace.layout.blocks``
 (strings)**. The within-group operator
 :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` (it reads
 ``problem.bc[face]``; its C4-era helper was ``_face_laws``) and the schedule's
@@ -9747,7 +9747,7 @@ construction:
    :label: bc-face-name-key-identity
 
    \operatorname{set}(\texttt{sn\_mesh.bc})
-   = \operatorname{set}(\texttt{boundary\_face\_layout.faces})
+   = \operatorname{set}(\texttt{boundary\_face\_layout.blocks})
    = \{\, \ell.\texttt{face\_name} : \ell \in \texttt{face\_labels} \,\}
 
 .. (vv-status rationale) Structural by-construction identity: the BC-dict keys,
@@ -9781,7 +9781,7 @@ very desync the carve removes):
   ``bc_ymax``, routed through ``SNMethodSpace.minimal`` so
   cross-dimensional code could read them without coord-system
   gating. **No production code ever read them**: a 1-D Problem's
-  ``trace.layout.faces`` is ``("xmin", "xmax")``, so the generic
+  ``trace.layout.blocks`` is ``("xmin", "xmax")``, so the generic
   consumers (which iterate the trace layout) never asked for a
   y-face. The placeholders were a uniformity affordance with no
   consumer — exactly the kind of dead realized state the
@@ -9800,7 +9800,7 @@ very desync the carve removes):
 Consumers migrated in C4: ``SNBoundaryOperator._face_laws``
 (within-group operator) and ``sweep_schedule.reflective_faces``
 (the schedule) both changed from ``getattr(mesh, f"bc_{face}")`` to
-``mesh.bc[face]``, iterating over ``trace.layout.faces`` exactly as
+``mesh.bc[face]``, iterating over ``trace.layout.blocks`` exactly as
 before.
 
 .. _bc-face-name-carve-verification:
@@ -9838,7 +9838,7 @@ strategy reflects that:
   foundation-tagged):
 
   - ``test_bc_inventory_equals_face_layout_across_geometries`` —
-    ``set(sn.bc) == set(angular_trace.layout.faces)`` across slab
+    ``set(sn.bc) == set(angular_trace.layout.blocks)`` across slab
     (2 faces), 2-D Cartesian (4), sphere (1), cylinder (1), the
     Issue #220 acceptance set.
   - ``test_2d_reflective_y_face_builds_y_axis_permutation`` — the
@@ -10187,15 +10187,15 @@ then exactly :math:`+\mu_z` and for ``zmin`` exactly :math:`-\mu_z`.
 
 To share the ``"{axis}{min|max}"`` crosswalk without an ``sn``-ward
 import from the ``numerics`` layer, ``AXIS_NAMES`` **moved down** to
-:mod:`orpheus.numerics.face_layout` — the home of
-:class:`~orpheus.numerics.face_layout.FaceLayout`, keeper of the face
+:mod:`orpheus.numerics.coproduct_layout` — the home of
+:class:`~orpheus.numerics.coproduct_layout.CoproductLayout`, keeper of the face
 string-name world. :mod:`orpheus.mesh.axis` re-exports it, so SN consumers
 are unchanged; the trace space (a ``numerics`` leaf) then read it
 without depending on ``sn``. Since layer DAG WP-B (2026-10-22) the naming half
 of that crosswalk (``AXIS_NAMES``, ``face_name``, ``face_normal``,
 ``face_opposite``) lives in :mod:`orpheus.geometry.faces`: a face's name and
 normal are statements about the domain and need no measure, so geometry is
-their home, and :mod:`~orpheus.numerics.face_layout` keeps only the
+their home, and :mod:`~orpheus.numerics.coproduct_layout` keeps only the
 flat-buffer descriptor and the streaming-normal measure.
 
 **The trace factory is geometry-blind.** The mesh parameter on the old

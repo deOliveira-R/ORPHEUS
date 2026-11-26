@@ -36,10 +36,10 @@ Whole-boundary storage + per-face access
 =========================================
 
 The space is the **whole** boundary: ``shape == (layout.total_size,)``
-where ``layout`` is the :class:`~orpheus.numerics.face_layout.FaceLayout`
+where ``layout`` is the :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`
 that packs every face into one flat buffer (the same descriptor
 :class:`AngularBoundaryFlux` consumes). Per-face access is via the layout's
-slot (``layout.faces[face].slice_view``) plus the per-face row of the
+slot (``layout.blocks[face].slice_view``) plus the per-face row of the
 signed-projection table; the old per-face ``(N, ng)`` "space" is now a
 *derived view*, not a class.
 
@@ -136,7 +136,7 @@ from orpheus.numerics.space import FunctionSpace, TensorSpace
 from orpheus.numerics.tangential import HalfRange, half_range
 
 if TYPE_CHECKING:
-    from orpheus.numerics.face_layout import FaceLayout
+    from orpheus.numerics.coproduct_layout import CoproductLayout
     from orpheus.numerics.elementary_operators import TraceRestrictionOperator
     from orpheus.numerics.quadrature import Quadrature
 
@@ -265,7 +265,7 @@ def build_omega_dot_n(
 def _build_trace_metric_weights(
     omega_dot_n: NDArray,
     quad_weights: NDArray,
-    layout: "FaceLayout[str]",
+    layout: "CoproductLayout[str]",
 ) -> NDArray:
     r"""Build the partial-current boundary metric :math:`G_s = |\Omega\cdot\hat n_f|\odot w_n`.
 
@@ -283,14 +283,14 @@ def _build_trace_metric_weights(
     ``(N, ng)`` (1-D) or ``(N, ng, n_face_cells)`` (2-D edge) the ``(N,)``
     cosine weight is broadcast across ALL trailing (group / spatial) axes.
 
-    The row order of ``omega_dot_n`` matches ``tuple(layout.faces)`` (both
-    derive from the same ordered layout), so ``enumerate(layout.faces)``
+    The row order of ``omega_dot_n`` matches ``tuple(layout.blocks)`` (both
+    derive from the same ordered layout), so ``enumerate(layout.blocks)``
     aligns face slots with projection rows.
     """
     weights_flat = np.zeros((int(layout.total_size),), dtype=float)
     w_n = np.asarray(quad_weights, dtype=float)  # (N,)
-    for f_idx, face_name in enumerate(layout.faces):
-        slot = layout.faces[face_name]
+    for f_idx, face_name in enumerate(layout.blocks):
+        slot = layout.blocks[face_name]
         face_w = face_streaming_normal(omega_dot_n[f_idx], w_n)  # (N,) = |Ω·n_f| · w_n
         # Ordinate is axis 0 of the slot; reshape to (N, 1, 1, …) so the
         # per-ordinate cosine weight broadcasts across every trailing axis
@@ -324,13 +324,13 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
         partial-current metric :math:`G_s = |\Omega\cdot\hat n_f|\odot w_n`
         (built by :func:`_build_trace_metric_weights`; see the module
         docstring) — NOT Euclidean.
-    layout : FaceLayout
+    layout : CoproductLayout
         The flat-buffer descriptor (which faces exist, per-face shapes,
         offsets). Carried as ``compare=False`` leaf-data so it does not
         pollute the ``(name, shape)`` identity — two trace spaces on
         meshes of the same total boundary size compare equal regardless
         of their face decomposition. Ordered iteration of
-        ``layout.faces`` defines the row order of :attr:`omega_dot_n`.
+        ``layout.blocks`` defines the row order of :attr:`omega_dot_n`.
     omega_dot_n : NDArray, shape ``(n_faces, n_ordinates)``
         The signed projection :math:`\Omega\cdot\hat n_f` per face. The
         single source of truth the inflow/outflow selectors AND the
@@ -364,7 +364,7 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
     # missing either is an illegal state); kw_only sidesteps the
     # inherited-defaults field-ordering rule. Construct via
     # :meth:`from_quadrature_and_layout`.
-    layout: "FaceLayout[str]" = field(kw_only=True, repr=False, compare=False)
+    layout: "CoproductLayout[str]" = field(kw_only=True, repr=False, compare=False)
     omega_dot_n: NDArray = field(kw_only=True, repr=False, compare=False)
     directions: NDArray = field(kw_only=True, repr=False, compare=False)
     #: The half-range of each face, in the row order of :attr:`omega_dot_n`, built once by the factory. The selectors
@@ -412,13 +412,13 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
     @property
     def face_names(self) -> tuple[str, ...]:
         """Ordered face names (matching :attr:`omega_dot_n` row order)."""
-        return tuple(self.layout.faces)
+        return tuple(self.layout.blocks)
 
     @classmethod
     def from_quadrature_and_layout(
         cls,
         quadrature: "Quadrature",
-        layout: "FaceLayout[str]",
+        layout: "CoproductLayout[str]",
     ) -> "AngularTraceSpace":
         r"""Build the trace space from a quadrature and a face layout.
 
@@ -433,7 +433,7 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
         quadrature : Quadrature
             Angular quadrature exposing ``mu_x`` (always) and ``mu_y`` /
             ``mu_z`` (when applicable).
-        layout : FaceLayout
+        layout : CoproductLayout
             The boundary face layout (canonically
             :func:`~orpheus.transport.phase_spaces.angular_face_layout`,
             which :attr:`~orpheus.sn.problem.SNProblem.angular_trace`
@@ -447,7 +447,7 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
         ValueError
             If ``layout`` names a face absent from the normal table.
         """
-        faces = tuple(layout.faces)
+        faces = tuple(layout.blocks)
         omega_dot_n = build_omega_dot_n(quadrature, faces)
         # Wave O / O.2b (#208): the partial-current boundary metric
         # G_s = |Ω·n_f| ⊙ w_n — the cosine-weighted angular quadrature under
@@ -611,7 +611,7 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
         out: dict[tuple[OrdinateTraceRole, str], AngularFaceTraceSpace] = {}
         metric_flat = np.asarray(self.partial_current_metric)
         for face in self.face_names:
-            slot = self.layout.faces[face]
+            slot = self.layout.blocks[face]
             n_ordinates = int(slot.shape[0])
             # The metric restricted to THIS face, then reduced to its leading
             # (ordinate) axis: `[M]` it is constant across the trailing group /
@@ -683,7 +683,7 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
         """
         out: dict[str, FunctionSpace] = {}
         for face in self.face_names:
-            shape = tuple(self.layout.faces[face].shape[1:])
+            shape = tuple(self.layout.blocks[face].shape[1:])
             out[face] = TensorSpace.declared(
                 _face_space_name(face, "current"),
                 shape,

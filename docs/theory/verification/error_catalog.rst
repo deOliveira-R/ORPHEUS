@@ -6379,7 +6379,7 @@ older entries classify against.
    .. code-block:: text
 
       return {face: self.sn_mesh.bc[face]
-              for face in self.sn_mesh.angular_trace.layout.faces}
+              for face in self.sn_mesh.angular_trace.layout.blocks}
 
 
    — every face, no ``block_role`` test anywhere. ``SNBoundaryOperator`` carries the

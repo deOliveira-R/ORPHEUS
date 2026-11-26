@@ -94,7 +94,7 @@ class AngularBoundaryResidual(AngularBoundaryField):  # concept: fluxsrc | role:
         The unified boundary
         :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
         (canonically ``mesh.angular_trace``), carrying the per-geometry
-        :class:`~orpheus.numerics.face_layout.FaceLayout`.
+        :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`.
 
     Notes
     -----

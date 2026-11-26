@@ -73,10 +73,10 @@ def bc() -> types.ModuleType:
 
 def trace_of(quadrature: Any, faces: tuple[str, ...] = ("xmin", "xmax")) -> Any:
     """The ``AngularTraceSpace`` of ``quadrature`` over ``faces`` (geometry-blind: the normals come from the names)."""
-    from orpheus.numerics.face_layout import FaceLayout
+    from orpheus.numerics.coproduct_layout import CoproductLayout
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 
-    layout = FaceLayout.from_named_shapes([(f, (int(quadrature.n_ordinates),)) for f in faces])
+    layout = CoproductLayout.from_named_shapes([(f, (int(quadrature.n_ordinates),)) for f in faces])
     return AngularTraceSpace.from_quadrature_and_layout(quadrature, layout)
 
 

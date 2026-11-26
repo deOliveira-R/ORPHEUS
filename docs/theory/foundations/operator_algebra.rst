@@ -6815,7 +6815,7 @@ Construction goes through the classmethod factory
 <orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout>`,
 which (since Issue #225 / C5.3) is **geometry-blind**: it builds the
 per-face :math:`\Omega\cdot\hat n` masks from the angular quadrature's
-direction-cosine arrays and a :class:`~orpheus.numerics.face_layout.FaceLayout`
+direction-cosine arrays and a :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`
 whose ``"{axis}{min|max}"`` face names imply axis-aligned outward
 normals — no spatial mesh is consulted. Every :class:`Mesh1D` coord
 system (``CARTESIAN`` / ``SPHERICAL`` / ``CYLINDRICAL``) shares the

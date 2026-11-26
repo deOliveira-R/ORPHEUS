@@ -930,7 +930,7 @@ reach identity, but through the axes, which is the doctrine *metric
 differences imply space differences*. Two **face** spaces specialise it
 for the SN sweep's
 codim-1 (face) quantities, both re-homing their
-:class:`~orpheus.numerics.face_layout.FaceLayout` onto the space as
+:class:`~orpheus.numerics.coproduct_layout.CoproductLayout` onto the space as
 ``compare=False`` leaf-data (the A.5 "layout-on-space" pattern):
 
 * :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` — the

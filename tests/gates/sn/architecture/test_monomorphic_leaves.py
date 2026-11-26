@@ -440,7 +440,7 @@ def _random_composite(problem: SNProblem, *, seed: int) -> TimedFullField:
         interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
     )
     state.interior.values[...] = rng.standard_normal(state.interior.values.shape)
-    for face in state.boundary.layout.faces:
+    for face in state.boundary.layout.blocks:
         view = state.boundary.face_view(face)
         view[...] = rng.standard_normal(view.shape)
     return state

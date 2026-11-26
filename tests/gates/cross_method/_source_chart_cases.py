@@ -159,7 +159,7 @@ def state(problem: Any, rng: np.random.Generator) -> Any:
 
     psi = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     psi.interior.values[...] = rng.standard_normal(psi.interior.values.shape)
-    for face in psi.boundary.layout.faces:
+    for face in psi.boundary.layout.blocks:
         fv = psi.boundary.face_view(face)
         fv[...] = rng.standard_normal(fv.shape)
     return psi

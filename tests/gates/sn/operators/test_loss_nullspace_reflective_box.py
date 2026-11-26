@@ -384,7 +384,7 @@ def test_a_kernel_mode_carries_metric_but_no_NET_CURRENT(singular_box):
     omega_dot_n = np.asarray(problem.angular_trace.omega_dot_n)
     worst_tangential = 0.0
     for index, (name, slot) in enumerate(
-            problem.angular_trace.layout.faces.items()):
+            problem.angular_trace.layout.blocks.items()):
         axis, _sign = face_normal(name)
         per_ordinate = slot.slice_view(
             mode[n_bulk:]).reshape(slot.shape[0], -1).sum(1)

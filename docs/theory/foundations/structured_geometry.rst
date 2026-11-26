@@ -3163,7 +3163,7 @@ and ``FullFieldSpace.from_blocks`` each pass a tuple of their parts to
 :func:`~orpheus.values.content.name_digest`, the one 8-byte space-name
 digest (the first 8 bytes of ``content_digest``, in hexadecimal), and the
 three trace spaces read their face layout's content through
-``FaceLayout.structure``, the layout's ``(key, offset, size)`` triples; the
+``CoproductLayout.structure``, the layout's ``(key, offset, size)`` triples; the
 route gate S5.6 (below) reds any of them that hashes its own bytes.
 
 **What is outside the encoder, and why.** The Sood registry's result cache

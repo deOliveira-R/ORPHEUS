@@ -46,7 +46,7 @@ TIERS: tuple[tuple[str, ...], ...] = (
     # sets, members of geometry's ``Manifold`` sum, and imports no numerics module;
     # ``tangential`` holds the one half-range selector both ``spaces`` and ``quadrature``
     # read, a leaf so that quadrature need not import spaces, layer DAG WF2.2)
-    ("bickley", "evidence", "face_layout", "face_measure", "gauge", "index_set", "instance_cache", "metric",
+    ("bickley", "evidence", "coproduct_layout", "face_measure", "gauge", "index_set", "instance_cache", "metric",
      "rational_polynomial", "recurrence", "registry", "tangential", "units", "vector"),
     # the coefficient layouts are content values a basis carries (ruling 81)
     ("coefficient_layout", "enclosure", "mesh_free_function"),

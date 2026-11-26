@@ -1788,8 +1788,8 @@ status.
        instead (:ref:`spaces-collapse-pair` on
        :doc:`/theory/foundations/spaces`) — while the per-face packing
        loop re-homes to its layout's own
-       :meth:`FaceLayout.pack
-       <orpheus.numerics.face_layout.FaceLayout.pack>` (native place),
+       :meth:`CoproductLayout.pack
+       <orpheus.numerics.coproduct_layout.CoproductLayout.pack>` (native place),
        leaving
        :meth:`BoundaryField.from_face_arrays
        <orpheus.transport.fields._bases.BoundaryField.from_face_arrays>`

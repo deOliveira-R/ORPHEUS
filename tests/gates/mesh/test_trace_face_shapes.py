@@ -71,7 +71,7 @@ def test_the_traced_faces_are_the_hand_inventory(case: str) -> None:
 
 def test_every_shape_is_a_tuple_of_ints() -> None:
     """A shape is the codimension-1 cell count, an ``int`` tuple (a numpy scalar would hash and compare like an int
-    and still break a ``FaceLayout`` key built from it)."""
+    and still break a ``CoproductLayout`` key built from it)."""
     for case, (build, _) in _CASES.items():
         for label, shape in trace_face_shapes(build()):
             if type(shape) is not tuple or not all(type(n) is int for n in shape):

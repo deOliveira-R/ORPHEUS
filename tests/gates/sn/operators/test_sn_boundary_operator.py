@@ -288,7 +288,7 @@ class TestApply:
         sn = _sn(*_CASES[case_id])
         psi = _random_state(sn)
         out = SNBoundaryOperator(sn).apply(psi)
-        for face in sn.angular_trace.layout.faces:
+        for face in sn.angular_trace.layout.blocks:
             bc = sn.bc[face]
             inflow = sn.angular_trace.inflow_indices_for_face(face)
             outflow = sn.angular_trace.outflow_indices_for_face(face)
@@ -332,7 +332,7 @@ class TestApply:
         sn = _sn(*_CASES[case_id])
         psi = _random_state(sn)
         out = SNBoundaryOperator(sn).apply(psi)
-        for face in sn.angular_trace.layout.faces:
+        for face in sn.angular_trace.layout.blocks:
             got = out.boundary.face_view(face)
             inflow = sn.angular_trace.inflow_indices_for_face(face)
             off_codomain = np.setdiff1d(np.arange(got.shape[0]), inflow)
@@ -374,7 +374,7 @@ class TestApply:
                     sn.angular_trace.inflow_indices_for_face(face)
                 ]
             ))
-            for face in sn.angular_trace.layout.faces
+            for face in sn.angular_trace.layout.blocks
         )
         if live == 0:
             pytest.fail(
@@ -429,7 +429,7 @@ class TestApplyTransposeCapability:
         # ZERO; see psi_half ``test_b_a_vacuum_transpose_is_the_honest_zero``.)
         psi = _random_state(sn)
         out = B.apply_transpose(psi)
-        for face in sn.angular_trace.layout.faces:
+        for face in sn.angular_trace.layout.blocks:
             bc = sn.bc[face]
             inflow = sn.angular_trace.inflow_indices_for_face(face)
             outflow = sn.angular_trace.outflow_indices_for_face(face)
@@ -478,7 +478,7 @@ class TestApplyTransposeCapability:
         sn = _sn(*_CASES[case_id])
         B = SNBoundaryOperator(sn)
         out = B.apply_transpose(_random_state(sn))
-        for face in sn.angular_trace.layout.faces:
+        for face in sn.angular_trace.layout.blocks:
             got = out.boundary.face_view(face)
             outflow = sn.angular_trace.outflow_indices_for_face(face)
             off = np.setdiff1d(np.arange(got.shape[0]), outflow)
@@ -659,12 +659,12 @@ class TestTheFaceActionIsCOMPOSED:
         sn = _sn(*_CASES[case_id])
         trace = sn.angular_trace
         rng = np.random.default_rng(11)
-        for face, law in ((f, sn.bc[f]) for f in trace.layout.faces):
+        for face, law in ((f, sn.bc[f]) for f in trace.layout.blocks):
             gamma_out = trace.outflow_restriction(face)
             gamma_in = trace.inflow_restriction(face)
             composed = law @ gamma_out
 
-            face_in = rng.standard_normal(trace.layout.faces[face].shape)
+            face_in = rng.standard_normal(trace.layout.blocks[face].shape)
             np.testing.assert_array_equal(
                 composed.apply(face_in), law.apply(gamma_out.apply(face_in)),
             )
@@ -740,7 +740,7 @@ class TestNarrowedLawDomain:
         ``test_boundary_law_domain.py``.
         """
         sn = _sn(*_CASES[case_id])
-        for face in sn.angular_trace.layout.faces:
+        for face in sn.angular_trace.layout.blocks:
             law = sn.bc[face]
             inflow = sn.angular_trace.inflow_indices_for_face(face)
             outflow = sn.angular_trace.outflow_indices_for_face(face)
@@ -815,7 +815,7 @@ class TestNarrowedLawDomain:
         would surface as a real error rather than a misattributed xfail.
         """
         sn = _sn(*_CASES[case_id])
-        face = next(iter(sn.angular_trace.layout.faces))
+        face = next(iter(sn.angular_trace.layout.blocks))
         law = sn.bc[face]
         slot = _random_state(sn).boundary.face_view(face)
         outflow = sn.angular_trace.outflow_indices_for_face(face)
@@ -942,7 +942,7 @@ class TestFaceRestrictedReflect:
         as the assignment."""
         out = boundary.copy()
         trace = sn.angular_trace
-        for face in out.layout.faces:
+        for face in out.layout.blocks:
             out.face_view(face)[trace.inflow_indices_for_face(face)] = 0.0
         return out
 
@@ -957,7 +957,7 @@ class TestFaceRestrictedReflect:
         only_xmax = self._inflow_zeroed(sn, boundary)
         mask.reflect_rows_inplace(only_xmax, ("xmax",))
         full = self._inflow_zeroed(sn, boundary)
-        mask.reflect_rows_inplace(full, tuple(full.layout.faces))
+        mask.reflect_rows_inplace(full, tuple(full.layout.blocks))
         xmax_inflow = trace.inflow_indices_for_face("xmax")
         xmin_inflow = trace.inflow_indices_for_face("xmin")
         # Selected face: bit-identical to the whole-trace reflect (the exact
@@ -986,12 +986,12 @@ class TestFaceRestrictedReflect:
         mask = self._full_inflow_mask(sn)
         trace = sn.angular_trace
         full = self._inflow_zeroed(sn, boundary)
-        mask.reflect_rows_inplace(full, tuple(full.layout.faces))
+        mask.reflect_rows_inplace(full, tuple(full.layout.blocks))
         xmin_only = self._inflow_zeroed(sn, boundary)
         mask.reflect_rows_inplace(xmin_only, ("xmin",))
         xmax_only = self._inflow_zeroed(sn, boundary)
         mask.reflect_rows_inplace(xmax_only, ("xmax",))
-        for face in full.layout.faces:
+        for face in full.layout.blocks:
             rows = trace.inflow_indices_for_face(face)
             np.testing.assert_array_equal(
                 full.face_view(face)[rows],

@@ -121,7 +121,7 @@ def _slab_sn_mesh(nx: int, *, bc: str, ng_key: str = "2g") -> SNProblem:
 def _seeded_inflow(problem: SNProblem, rng: np.random.Generator) -> AngularBoundaryFlux:
     """A boundary flux with a random non-zero inflow trace on every face."""
     bf = AngularBoundaryFlux.zeros(problem.angular_trace)
-    for face in bf.layout.faces:
+    for face in bf.layout.blocks:
         fv = bf.face_view(face)
         fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
     return bf

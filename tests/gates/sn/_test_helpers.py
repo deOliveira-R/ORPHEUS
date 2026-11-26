@@ -167,10 +167,10 @@ def face_trace(quadrature, faces=("xmin", "xmax")):
     derives the outward normals from the ``"{axis}{min|max}"`` face-name
     convention — so no mesh is needed.
     """
-    from orpheus.numerics.face_layout import FaceLayout
+    from orpheus.numerics.coproduct_layout import CoproductLayout
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 
-    layout = FaceLayout.from_named_shapes(
+    layout = CoproductLayout.from_named_shapes(
         [(f, (int(quadrature.n_ordinates),)) for f in faces]
     )
     return AngularTraceSpace.from_quadrature_and_layout(quadrature, layout)
@@ -367,7 +367,7 @@ def het_operands(sn: "SNProblem"):
         interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
     )
     psi.interior.values[...] = rng.standard_normal(psi.interior.values.shape)
-    for face in psi.boundary.layout.faces:
+    for face in psi.boundary.layout.blocks:
         fv = psi.boundary.face_view(face)
         fv[...] = rng.standard_normal(fv.shape)
     seed = random_radial_characteristic_field(sn, rng)
@@ -428,7 +428,7 @@ def legacy_proxy_matvec(
     del bc_outer, angular_closure  # explicitly mark unused
     boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
     boundary.face_view("xmax")[:] = psi_view[:, :, -1]
-    if "xmin" in boundary.layout.faces:
+    if "xmin" in boundary.layout.blocks:
         boundary.face_view("xmin")[:] = psi_view[:, :, 0]
     # #282 route (a): the "legacy proxy" pins the PRE-route-(a) matvec
     # convention (seed = the input field extrapolated in μ to the level's
@@ -678,7 +678,7 @@ def sweep_once(source, sig_t, problem, boundary_flux):
             problem,
             {
                 face: boundary_flux.face_view(face)
-                for face in boundary_flux.layout.faces
+                for face in boundary_flux.layout.blocks
             },
         ),
         _history=(),
@@ -803,7 +803,7 @@ def g_inner(a: "TimedFullField", b: "TimedFullField", sn: "SNProblem", *,
     """
     bulk = float(np.sum(g_bulk_measure(sn) * a.interior.values * b.interior.values))
     trace = 0.0
-    for f_idx, face in enumerate(sn.angular_trace.layout.faces):
+    for f_idx, face in enumerate(sn.angular_trace.layout.blocks):
         af = a.boundary.face_view(face)
         bf = b.boundary.face_view(face)
         w_face = g_trace_cosine_weight(sn, f_idx, with_cosine=with_cosine)
@@ -845,7 +845,7 @@ def g_coupled_diagonal(sn: "SNProblem") -> np.ndarray:
     ).ravel().astype(float)
 
     bfield = AngularBoundaryFlux.zeros(sn.angular_trace)
-    for f_idx, face in enumerate(sn.angular_trace.layout.faces):
+    for f_idx, face in enumerate(sn.angular_trace.layout.blocks):
         w_face = g_trace_cosine_weight(sn, f_idx, with_cosine=True)
         view = bfield.face_view(face)
         view[:] = np.broadcast_to(
@@ -1142,7 +1142,7 @@ def reflect_outflow_into_inflow(boundary_flux, problem: "SNProblem") -> None:
         SweepSchedule.jacobi(problem.ndim, problem.quad.octants),
     ).upper
     trace = problem.angular_trace
-    faces = tuple(boundary_flux.layout.faces)
+    faces = tuple(boundary_flux.layout.blocks)
     for face in faces:
         boundary_flux.face_view(face)[trace.inflow_indices_for_face(face)] = 0.0
     full_inflow.reflect_rows_inplace(boundary_flux, faces)

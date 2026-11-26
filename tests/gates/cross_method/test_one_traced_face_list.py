@@ -8,7 +8,7 @@ load-bearing (``retirement-audit`` D.18), and this file is its witness, two ways
   posed SN slab's angular trace and a diffusion slab's scalar trace, and an activation counter proves each pose called
   it; the control leg (no decoy) keeps the honest order;
 * the CENSUS: over ``orpheus/`` (AST), the face-layout and trace-space builders are called only where the list has its
-  one reader: ``FaceLayout.from_named_shapes`` at 3 sites (the angular layout, ``ScalarTraceSpace.for_faces``'s own body
+  one reader: ``CoproductLayout.from_named_shapes`` at 3 sites (the angular layout, ``ScalarTraceSpace.for_faces``'s own body
   and the radial-characteristic corner layout), ``ScalarTraceSpace.for_faces`` and
   ``AngularTraceSpace.from_quadrature_and_layout`` at 1 each, all in ``orpheus/transport/phase_spaces.py`` but the two
   numerics-internal sites. Positive control: the census finds ``phase_spaces.py``'s ``from_named_shapes`` call.
@@ -42,7 +42,7 @@ def _poses():
     scalar_layout = diffusion.scalar_trace.layout
     if scalar_layout is None:
         pytest.fail("the diffusion scalar trace carries no face layout")
-    return list(sn.angular_trace.layout.faces), list(scalar_layout.faces)
+    return list(sn.angular_trace.layout.blocks), list(scalar_layout.blocks)
 
 
 def test_the_control_poses_read_the_honest_order() -> None:

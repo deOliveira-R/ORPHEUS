@@ -1,7 +1,7 @@
 r"""L0 — the codim-1 :class:`FaceField` hierarchy (C2b of the FaceField carve).
 
 C2b introduced :class:`~orpheus.transport.fields._bases.FaceField` — the shared
-codim-1 parent that owns the flat-buffer / :class:`FaceLayout` discipline ONCE —
+codim-1 parent that owns the flat-buffer / :class:`CoproductLayout` discipline ONCE —
 and re-parented the two codim-1 loci under it as **siblings**:
 
 * :class:`BoundaryField` (``FaceField[str]``) — the SPATIAL faces;

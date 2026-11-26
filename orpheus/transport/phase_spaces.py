@@ -30,7 +30,7 @@ import numpy as np
 
 from orpheus.mesh import trace_face_shapes
 from orpheus.numerics.axis import Axis
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.factor import Factor, Kind, Subquotient, Variance, VarianceChart
 from orpheus.numerics.space import FunctionSpace, TensorSpace, factor_tail
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
@@ -66,7 +66,7 @@ def angular_bulk_space(mesh: MaterialMesh, quadrature: Quadrature) -> TensorSpac
 
 def angular_face_layout(
     mesh: MaterialMesh, quadrature: Quadrature, scheme: DiscretizationSchemeBase,
-) -> FaceLayout[str]:
+) -> CoproductLayout[str]:
     r"""The angular boundary trace's face layout: one slot per traced face, shaped ``(N, ng, *face_shape, *tail)``.
 
     The faces and their spatial shapes are :func:`~orpheus.mesh.axis.trace_face_shapes`, in the canonical
@@ -76,7 +76,7 @@ def angular_face_layout(
     """
     n_ordinates = quadrature.n_ordinates
     moment_tail = factor_tail(scheme.face_moment_count(mesh.ndim))
-    return FaceLayout.from_named_shapes([
+    return CoproductLayout.from_named_shapes([
         (label.face_name, (n_ordinates, mesh.ng, *shape, *moment_tail))
         for label, shape in trace_face_shapes(mesh.axes)
     ])

@@ -88,7 +88,7 @@ from orpheus.numerics.tangential import half_range  # noqa: E402
 #: :class:`AxisMesh` with overridden ``label_low`` / ``label_high`` —
 #: has NO face name and fails loud in :attr:`FaceLabel.face_name`,
 #: rather than silently desynchronizing from the ``"{axis}{min|max}"``
-#: world that :class:`~orpheus.numerics.face_layout.FaceLayout`,
+#: world that :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`,
 #: the trace space, and the sweep schedule all key on.
 _ENDPOINT_SUFFIX = {"min": "min", "max": "max", "outer": "max"}
 
@@ -129,7 +129,7 @@ class FaceLabel:  # concept: face | role: twin | kind: element
 
         The single-sourced crosswalk from the structural identity
         ``(axis_index, endpoint)`` to the string key that
-        :class:`~orpheus.numerics.face_layout.FaceLayout`, the trace
+        :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`, the trace
         space, :attr:`SNProblem.bc`, and the sweep schedule all share:
         axis name from :data:`AXIS_NAMES`, endpoint suffix from
         :data:`_ENDPOINT_SUFFIX` (``"outer"`` renders as ``max`` — a

@@ -3652,7 +3652,7 @@ class _OneDimScanWalk:  # concept: algorithm | role: weld | kind: element | weld
 
         boundary = psi.boundary
         trace = problem.angular_trace
-        has_inner_face = "xmin" in boundary.layout.faces
+        has_inner_face = "xmin" in boundary.layout.blocks
         face_outer = boundary.face_view("xmax")
         face_inner = boundary.face_view("xmin") if has_inner_face else None
 
@@ -4007,7 +4007,7 @@ class _OneDimScanWalk:  # concept: algorithm | role: weld | kind: element | weld
         V = problem.volumes
         sgx = sigma                                  # (ng, nx)
         trace = problem.angular_trace
-        has_inner_face = "xmin" in phi.boundary.layout.faces
+        has_inner_face = "xmin" in phi.boundary.layout.blocks
 
         # #282 route (a) → B.2d → step 6: this is the ray-decoupled (A,A)ᵀ
         # block action on a carrying mesh — the bulk/trace reversal is

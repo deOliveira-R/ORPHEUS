@@ -126,7 +126,7 @@ def test_loss_action_is_full_loss_LpC_flat_reflective(case):
 
     psi = _zeros_state(sn)
     psi.interior.values[...] = 1.0   # FLAT in space + angle (the reflective fundamental)
-    for face in psi.boundary.layout.faces:
+    for face in psi.boundary.layout.blocks:
         psi.boundary.face_view(face)[...] = 1.0   # flat trace (in = out = avg)
 
     lpc = rep.loss_action(sig_t, psi)
@@ -174,7 +174,7 @@ def test_pure_L_plus_C_recovers_loss_action_het(case):
 
     psi = _zeros_state(sn)
     psi.interior.values[...] = rng.standard_normal(psi.interior.values.shape)   # NON-flat
-    for face in psi.boundary.layout.faces:
+    for face in psi.boundary.layout.blocks:
         fv = psi.boundary.face_view(face)
         fv[...] = rng.standard_normal(fv.shape)
 

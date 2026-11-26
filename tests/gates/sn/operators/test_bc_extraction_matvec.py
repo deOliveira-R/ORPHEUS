@@ -220,7 +220,7 @@ def _random_state(problem: SNProblem, seed: int, *, zero_boundary: bool = True) 
     boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
     if not zero_boundary:
         # Populate every face buffer with a fixed-seed random trace.
-        for face in boundary.layout.faces:
+        for face in boundary.layout.blocks:
             view = boundary.face_view(face)
             view[:] = rng.standard_normal(view.shape)
     bulk_arr = rng.standard_normal((N, ng, *problem.spatial_shape))
@@ -710,7 +710,7 @@ class TestLFullOutflowDefectKept:
             _history=(), history_depth=2,
         )
         trace = problem.angular_trace
-        for face in state.boundary.layout.faces:
+        for face in state.boundary.layout.blocks:
             src = state.boundary.face_view(face)
             dst = state2.boundary.face_view(face)
             inflow = trace.inflow_indices_for_face(face)

@@ -622,7 +622,7 @@ def test_ld_moment_mass_metric_is_load_bearing(monkeypatch):
         ghost = base * np.array([1.0, 0.0])
         bulk = float(np.sum(ghost * a.interior.values * b.interior.values))
         trace = 0.0
-        for f_idx, face in enumerate(sn.angular_trace.layout.faces):
+        for f_idx, face in enumerate(sn.angular_trace.layout.blocks):
             w_face = g_trace_cosine_weight(sn, f_idx, with_cosine=True)
             af, bf = a.boundary.face_view(face), b.boundary.face_view(face)
             trace += float(np.sum(af * bf * w_face[:, None]))
@@ -1117,14 +1117,14 @@ def _tangential_kernel_mask(sn: SNProblem) -> np.ndarray:
     Over the flat composite ``[bulk.ravel(), trace]``: a bulk slot never
     (its weight ``V·w_n`` is positive); a trace slot iff its ordinate's
     ``Ω·n`` on that face is EXACTLY ``0.0``. Face rows of ``omega_dot_n``
-    follow ``layout.faces`` order.
+    follow ``layout.blocks`` order.
     """
     n_bulk = sn.quad.n_ordinates * sn.ng * int(np.prod(sn.spatial_shape))
     layout = sn.angular_trace.layout
     omega_dot_n = np.asarray(sn.angular_trace.omega_dot_n)
     trace = np.zeros(int(layout.total_size), dtype=bool)
-    for row, face in enumerate(layout.faces):
-        slot = layout.faces[face]
+    for row, face in enumerate(layout.blocks):
+        slot = layout.blocks[face]
         on_face = np.zeros(slot.shape, dtype=bool)
         on_face[omega_dot_n[row] == 0.0] = True
         trace[slot.offset: slot.offset + slot.flat_size] = on_face.ravel()

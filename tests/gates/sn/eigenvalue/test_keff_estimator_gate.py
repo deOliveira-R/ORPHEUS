@@ -308,7 +308,7 @@ class TestFaceAreaObjectPin:
             for face, layer in ((f"{prefix}min", 0), (f"{prefix}max", -1)):
                 area = np.asarray(solver._face_area_of(face))
                 # Trace-layout authority: the slot is (N, ng, *face_spatial).
-                slot = sn.angular_trace.layout.faces[face]
+                slot = sn.angular_trace.layout.blocks[face]
                 np.testing.assert_equal(
                     area.shape, slot.shape[2:],
                     err_msg=f"{face}: face measure vs trace-slot spatial "

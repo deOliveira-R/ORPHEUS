@@ -471,7 +471,7 @@ layer = "numerics"
 wave = "W1"
 ruling = "O29"
 missing = true
-arms = ["orpheus/numerics/coefficient_layout.py::HarmonicLayout", "orpheus/numerics/coefficient_layout.py::LegendreLayout", "orpheus/numerics/coefficient_layout.py::CellLayout", "orpheus/numerics/coefficient_layout.py::ModeLayout", "orpheus/numerics/coefficient_layout.py::PolynomialLayout", "orpheus/numerics/coefficient_layout.py::TensorLayout", "orpheus/numerics/face_layout.py::FaceLayout"]
+arms = ["orpheus/numerics/coefficient_layout.py::HarmonicLayout", "orpheus/numerics/coefficient_layout.py::LegendreLayout", "orpheus/numerics/coefficient_layout.py::CellLayout", "orpheus/numerics/coefficient_layout.py::ModeLayout", "orpheus/numerics/coefficient_layout.py::PolynomialLayout", "orpheus/numerics/coefficient_layout.py::TensorLayout", "orpheus/numerics/coproduct_layout.py::CoproductLayout"]
 theory = ["ref:spaces-moment-head"]
 
 [[concept]]

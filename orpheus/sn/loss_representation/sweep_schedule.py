@@ -328,6 +328,6 @@ def reflective_faces(problem: "SNProblem") -> frozenset[str]:
     """
     return frozenset(
         face
-        for face in problem.angular_trace.layout.faces
+        for face in problem.angular_trace.layout.blocks
         if problem.bc[face].permutes_ordinates
     )

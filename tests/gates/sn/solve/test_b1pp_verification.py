@@ -227,7 +227,7 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     bulk_values = np.ones_like(state.interior.values)
     new_bulk = replace(state.interior, values=bulk_values)
     new_boundary = state.boundary
-    for face in new_boundary.layout.faces:
+    for face in new_boundary.layout.blocks:
         new_boundary.face_view(face)[:] = 1.0
     state = replace(state, interior=new_bulk, boundary=new_boundary)
     # #282 route (a) → B.2d: the CONSISTENT ψ½ seed of a per-ordinate FLAT
@@ -265,7 +265,7 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     # self-consistency defect ``streamed − ψ.outflow`` (= 0 for flat ψ) and the
     # INFLOW ordinate slots carry the identity ``ψ.inflow`` (= 1 here).
     trace = problem.angular_trace
-    for face in out.boundary.layout.faces:
+    for face in out.boundary.layout.blocks:
         fv = out.boundary.face_view(face)
         outflow = trace.outflow_indices_for_face(face)
         inflow = trace.inflow_indices_for_face(face)

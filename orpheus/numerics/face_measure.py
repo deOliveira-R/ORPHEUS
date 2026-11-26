@@ -1,7 +1,7 @@
 r"""The codim-1 face measure: the spatial-trace partial-current weight.
 
 L1 primitive (mathematics, knows no neutrons). A layout module holds layouts
-only (:mod:`orpheus.numerics.face_layout`); the measure :math:`|\Omega\cdot\hat n|\,w`
+only (:mod:`orpheus.numerics.coproduct_layout`); the measure :math:`|\Omega\cdot\hat n|\,w`
 lives here, beside no layout.
 """
 

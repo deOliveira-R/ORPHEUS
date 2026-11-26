@@ -304,9 +304,9 @@ class TestReturnTypeContract:
         state = result.angular_flux
         assert isinstance(state, TimedFullField)
         # Sphere has xmax face only (no xmin face; pole at r=0).
-        assert "xmax" in state.boundary.layout.faces
+        assert "xmax" in state.boundary.layout.blocks
         assert state.boundary.face_view("xmax").shape == (quad.n_ordinates, 1)
-        assert "xmin" not in state.boundary.layout.faces  # sphere has no inner face
+        assert "xmin" not in state.boundary.layout.blocks  # sphere has no inner face
 
 
 # ── Pin 5: no legacy eq_map machinery — retired with D-J 2026-05-30

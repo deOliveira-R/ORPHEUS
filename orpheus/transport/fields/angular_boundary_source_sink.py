@@ -179,7 +179,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         The unified boundary
         :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
         (canonically ``mesh.angular_trace``), carrying the per-geometry
-        :class:`~orpheus.numerics.face_layout.FaceLayout`.
+        :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`.
 
     Notes
     -----
@@ -254,7 +254,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         problem : MaterialMesh
             The material mesh; ``problem.angular_trace`` supplies the
             trace: its
-            :class:`~orpheus.numerics.face_layout.FaceLayout` and the
+            :class:`~orpheus.numerics.coproduct_layout.CoproductLayout` and the
             per-face inflow ordinate index sets
             (:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`).
         face_values : Mapping[str, NDArray]
@@ -289,7 +289,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         :func:`~orpheus.transport.phase_spaces.angular_trace_space`) and no problem calls it directly.
         """
         bss = cls.zeros(trace)
-        known = set(trace.layout.faces.keys())
+        known = set(trace.layout.blocks.keys())
         for face, values in face_values.items():
             if face not in known:
                 raise ValueError(
@@ -368,7 +368,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         """
         binding, trace, realizers, face_site = method.binding, method.angular_trace, method.boundary_realizers, method.face_site
         face_values: "dict[str, NDArray]" = {}
-        known = set(trace.layout.faces.keys())
+        known = set(trace.layout.blocks.keys())
         for face, terms in binding.sources.items():
             if face not in known:
                 raise ValueError(

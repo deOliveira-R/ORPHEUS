@@ -88,7 +88,7 @@ def _reflective_faces(sn: SNProblem) -> set[str]:
     ``== "reflective"`` tag comparison: the tag is gone, the deck is the declaration.)
     """
     return {
-        f for f in sn.angular_trace.layout.faces if isinstance(sn.mesh.face_roles[f], MirrorDeck)
+        f for f in sn.angular_trace.layout.blocks if isinstance(sn.mesh.face_roles[f], MirrorDeck)
     }
 
 

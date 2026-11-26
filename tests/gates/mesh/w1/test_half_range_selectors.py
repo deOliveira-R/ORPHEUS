@@ -25,7 +25,7 @@ import pytest
 
 from orpheus.mesh import axis as mesh_axis
 from orpheus.mesh.axis import face_outflow_ordinates
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.quadrature import directional
 from orpheus.numerics.spaces import AngularTraceSpace, angular_trace_space
 from tests.gates import _half_range_helpers as H
@@ -45,7 +45,7 @@ def _owner():
 def disagreements(quad) -> list[str]:
     r"""What the readers of the half-range say differently on ``quad``, face by face; an empty list is one answer. Owner not consulted."""
     n = int(quad.n_ordinates)
-    layout = FaceLayout.from_named_shapes([(f, (n, _NG)) for f, _, _ in _FACES])
+    layout = CoproductLayout.from_named_shapes([(f, (n, _NG)) for f, _, _ in _FACES])
     trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
     x_label = H.octant_labels(quad)
     x_label = x_label if x_label.ndim == 1 else x_label[:, 0]
@@ -78,7 +78,7 @@ def test_every_selector_reads_the_owner_on_a_nudged_fixture() -> None:
 
     half_range = _owner()
     n = int(quad.n_ordinates)
-    layout = FaceLayout.from_named_shapes([(f, (n, _NG)) for f, _, _ in _FACES])
+    layout = CoproductLayout.from_named_shapes([(f, (n, _NG)) for f, _, _ in _FACES])
     trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
     for face, endpoint, sign in _FACES:
         half = half_range(quad, 0, sign=sign)

@@ -8013,7 +8013,7 @@ status.
        encoders with no type tags or length prefixes, call
        :func:`~orpheus.values.content.name_digest`, the one 8-byte
        space-name digest, and the trace spaces read their layout's
-       content through ``FaceLayout.structure``. The
+       content through ``CoproductLayout.structure``. The
        generator exclusion is answered a third time: an inclusion now
        fails for both generator types
        (:ref:`spaces-generator-identity-third-answer`). Record of the

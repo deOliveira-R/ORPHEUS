@@ -607,8 +607,8 @@ class TestFacePackingOrderIsBookkeeping:
         factory, forward, reversed_ = self._QUADS[quad_name]
         quad = factory()
         trace_a, trace_b = face_trace(quad, forward), face_trace(quad, reversed_)
-        offsets_a = {f: trace_a.layout.faces[f].offset for f in forward}
-        offsets_b = {f: trace_b.layout.faces[f].offset for f in forward}
+        offsets_a = {f: trace_a.layout.blocks[f].offset for f in forward}
+        offsets_b = {f: trace_b.layout.blocks[f].offset for f in forward}
         assert offsets_a != offsets_b, "the two orderings packed every face identically: the fixture is vacuous"
         for face in forward:
             assert trace_a.outflow_space(face) == trace_b.outflow_space(face)

@@ -81,7 +81,7 @@ def _random_sig_t(rng, ng, nx, ny):
 def _seed_random_inflow(rng, boundary):
     """Fill every boundary face slab with a random inflow trace (so the
     orchestrator's boundary handling is genuinely exercised)."""
-    for face in boundary.layout.faces:
+    for face in boundary.layout.blocks:
         fv = boundary.face_view(face)
         fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
 

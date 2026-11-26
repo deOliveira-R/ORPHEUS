@@ -192,7 +192,7 @@ def test_p200_1_a_boundary_only_residual_round_trips(geom: str) -> None:
         )
     trace = problem.angular_trace
     n_live = 0
-    for face in q_a.boundary.layout.faces:
+    for face in q_a.boundary.layout.blocks:
         live = np.union1d(trace.inflow_indices_for_face(face), trace.outflow_indices_for_face(face))
         n_live += live.size
         np.testing.assert_allclose(

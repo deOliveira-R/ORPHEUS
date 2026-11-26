@@ -206,7 +206,7 @@ def random_composite(problem: SNProblem, seed: int) -> FullField:
     rng = np.random.default_rng(seed)
     interior = AngularFlux(values=rng.normal(size=(problem.quad.n_ordinates, problem.ng, *problem.spatial_shape)), space=problem.angular_bulk_space)
     boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
-    for face in boundary.layout.faces:
+    for face in boundary.layout.blocks:
         view = boundary.face_view(face)
         view[...] = rng.normal(size=view.shape)
     return FullField(interior=interior, boundary=boundary)
@@ -223,7 +223,7 @@ def random_source_composite(problem: SNProblem, seed: int) -> FullField:
         values=rng.normal(size=(problem.quad.n_ordinates, problem.ng, *problem.spatial_shape)), space=problem.angular_bulk_space,
     )
     boundary = AngularBoundarySourceSink.zeros(problem.angular_trace)
-    for face in boundary.layout.faces:
+    for face in boundary.layout.blocks:
         view = boundary.face_view(face)
         view[...] = rng.normal(size=view.shape)
     return FullField(interior=interior, boundary=boundary)

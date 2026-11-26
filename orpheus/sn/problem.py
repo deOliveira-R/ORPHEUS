@@ -169,7 +169,7 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         The declared conditions joined to this problem's faces by :func:`~orpheus.transport.boundary_conditions.bind` (the carrier
         is this problem: its ``face_roles`` and its colouring ``symmetry``).
     bc : dict[str, RealizedBoundary]
-        Realized boundary operator per face WITH A TRACE, keyed by the face name, the SAME keys as :attr:`angular_trace`'s ``layout.faces``, derived from :attr:`face_labels` through the single-sourced
+        Realized boundary operator per face WITH A TRACE, keyed by the face name, the SAME keys as :attr:`angular_trace`'s ``layout.blocks``, derived from :attr:`face_labels` through the single-sourced
         :attr:`~orpheus.mesh.axis.FaceLabel.face_name` crosswalk (C4, #220). Each value is a typed
         :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary` whose facts (``return_fraction``, ``permutes_ordinates``,
         ``domain_face``, ``is_vacuum``) are properties of its TYPE, so a consumer asks the operator what the face DOES and never the

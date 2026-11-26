@@ -451,7 +451,7 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         "orpheus.geometry.faces",
         "orpheus.geometry.roots_of_unity",
         "orpheus.numerics.index_set",
-        "orpheus.numerics.face_layout",
+        "orpheus.numerics.coproduct_layout",
         # R2 of #434 (2026-09-03): the four entries the V1 cycle killed that
         # the list above could not see — `[M]` with `manifold -> symmetry` at
         # module scope AND symmetry still importing the axis table from

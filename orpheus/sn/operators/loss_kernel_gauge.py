@@ -731,7 +731,7 @@ def _block_support(
 
     raw: list[NDArray] = []
     stubs: list[tuple[int, int, float, NDArray, tuple[int, ...]]] = []
-    for face_name, slot in layout.faces.items():
+    for face_name, slot in layout.blocks.items():
         axis, sign = face_normal(face_name)
         if axis not in active:
             continue
@@ -859,7 +859,7 @@ def _trace_flux_weights(problem: "SNProblem") -> NDArray:
     layout = problem.angular_trace.layout
     mu = _direction_cosines(problem)
     weights = np.zeros(problem.angular_trace.n_coordinates)
-    for face_name, slot in layout.faces.items():
+    for face_name, slot in layout.blocks.items():
         axis, sign = face_normal(face_name)
         _, area = _transverse_factors(problem, axis)
         if tuple(slot.shape[2:]) != area.shape:
@@ -897,7 +897,7 @@ def _balance_weights(problem: "SNProblem") -> NDArray:
     weights = np.asarray(problem.quad.weights, dtype=float)
     layout = problem.angular_trace.layout
     ordinate_weight = np.zeros(problem.angular_trace.n_coordinates)
-    for slot in layout.faces.values():
+    for slot in layout.blocks.values():
         ordinate_weight[slot.offset:slot.offset + int(np.prod(slot.shape))] = np.broadcast_to(
             weights[:, *([None] * (len(slot.shape) - 1))], slot.shape).ravel()
     return np.concatenate([np.ravel(bulk), -ordinate_weight * _trace_flux_weights(problem)])
@@ -1030,7 +1030,7 @@ def predicted_physical_kernel(problem: "SNProblem") -> PredictedKernel:
     interior = tuple(int(n) for n in space.interior_space.shape)
     bulk_group = np.broadcast_to(np.arange(interior[1]).reshape((1, -1) + (1,) * (len(interior) - 2)), interior).ravel()
     trace_group = np.zeros(problem.angular_trace.n_coordinates, dtype=np.intp)
-    for slot in problem.angular_trace.layout.faces.values():
+    for slot in problem.angular_trace.layout.blocks.values():
         trace_group[slot.offset:slot.offset + int(np.prod(slot.shape))] = np.broadcast_to(
             np.arange(slot.shape[1])[None, :, *([None] * (len(slot.shape) - 2))], slot.shape).ravel()
     group = np.concatenate([bulk_group, trace_group])

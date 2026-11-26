@@ -1,7 +1,7 @@
 r"""Codim-1 face primitives: the flat-buffer layout.
 
 L1 primitive (mathematics, knows no neutrons) shared by every codim-1
-(face / edge) function space: :class:`FaceSlot` / :class:`FaceLayout` — how a
+(face / edge) function space: :class:`LayoutBlock` / :class:`CoproductLayout` — how a
 structured collection of faces is laid out in a single flat backing buffer:
 each named face is mapped to a contiguous slice + per-face reshape. The
 streaming-normal measure lives in :mod:`orpheus.numerics.face_measure`.
@@ -25,7 +25,7 @@ Python overhead.
 
 Post-D-G :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
 inherits :class:`~orpheus.numerics.field.Field` and stores values in a
-SINGLE flat backing buffer. :class:`FaceLayout` is the descriptor that
+SINGLE flat backing buffer. :class:`CoproductLayout` is the descriptor that
 recovers per-face access via O(1) slice views (memory-shared with the
 backing buffer; no copies). Field-inherited algebra operates on the
 flat buffer in ONE numpy call regardless of face count — O(1) Python
@@ -44,7 +44,7 @@ References
 * Depth B plan §3.4 (Option Ω flat-buffer storage).
 * Plan §6 step D-G (AngularBoundaryFlux as pure Field + SweepScratch carve).
 * ``coding-elegance`` Pattern 5 (build the right primitive, not the
-  right product) — FaceLayout is the primitive; the per-method
+  right product) — CoproductLayout is the primitive; the per-method
   AngularBoundaryFlux constructions are the products.
 """
 
@@ -59,36 +59,36 @@ from numpy.typing import NDArray
 
 
 __all__ = [
-    "FaceSlot",
-    "FaceLayout",
+    "LayoutBlock",
+    "CoproductLayout",
 ]
 
-#: The slot-key type of a :class:`FaceLayout` / :class:`FaceSlot`. The
+#: The slot-key type of a :class:`CoproductLayout` / :class:`LayoutBlock`. The
 #: descriptor is key-generic: SN Cartesian spatial traces key faces by
-#: ``str`` name (``FaceLayout[str]``); the ψ½ starting-direction space keys
+#: ``str`` name (``CoproductLayout[str]``); the ψ½ starting-direction space keys
 #: each ``(level, sign)`` leg's ``cells`` / ``corner`` slots by the
 #: structured tuple ``(level, sign, part)``
-#: (``FaceLayout[tuple[int, int, str]]``). The flat-buffer discipline
+#: (``CoproductLayout[tuple[int, int, str]]``). The flat-buffer discipline
 #: (offset assignment, slice views, gap/overlap validation) is identical
 #: across key regimes — only the key's *type* differs. Bounded by
 #: :class:`~collections.abc.Hashable`: the key is a mapping key, so an
-#: unhashable realization (``FaceLayout[list[int]]``) is unspellable.
+#: unhashable realization (``CoproductLayout[list[int]]``) is unspellable.
 K = TypeVar("K", bound=Hashable)
 
 
 @dataclass(frozen=True)
-class FaceSlot(Generic[K]):  # concept: layout | role: part | kind: set
+class LayoutBlock(Generic[K]):  # concept: layout | role: part | kind: set
     r"""Per-face slot in a flat boundary buffer.
 
     Parameters
     ----------
     key : K
-        The slot's identity in the owning :class:`FaceLayout`.
+        The slot's identity in the owning :class:`CoproductLayout`.
         A ``str`` face name (``"xmin"`` / ``"xmax"`` / ``"ymin"`` / ``"ymax"``
         for SN Cartesian spatial traces; arbitrary tokens for other methods)
-        in the ``FaceLayout[str]`` case, or a structured key when the faces
+        in the ``CoproductLayout[str]`` case, or a structured key when the faces
         are not stringly named — the ψ½ starting-direction space keys each
-        slot by ``(level, sign, part)`` (a ``FaceLayout[tuple[int, int, str]]``).
+        slot by ``(level, sign, part)`` (a ``CoproductLayout[tuple[int, int, str]]``).
     offset : int
         Start index of this face's flat region in the backing buffer.
     shape : tuple[int, ...]
@@ -113,12 +113,12 @@ class FaceSlot(Generic[K]):  # concept: layout | role: part | kind: set
         expected = int(np.prod(self.shape))
         if self.flat_size != expected:
             raise ValueError(
-                f"FaceSlot({self.key!r}): flat_size={self.flat_size} does "
+                f"LayoutBlock({self.key!r}): flat_size={self.flat_size} does "
                 f"not match prod(shape={self.shape!r}) = {expected}"
             )
         if self.offset < 0:
             raise ValueError(
-                f"FaceSlot({self.key!r}): offset must be non-negative; "
+                f"LayoutBlock({self.key!r}): offset must be non-negative; "
                 f"got {self.offset}"
             )
 
@@ -134,52 +134,52 @@ class FaceSlot(Generic[K]):  # concept: layout | role: part | kind: set
 
 
 @dataclass(frozen=True)
-class FaceLayout(Generic[K]):  # concept: layout | role: arm | kind: set
+class CoproductLayout(Generic[K]):  # concept: layout | role: arm | kind: set
     r"""Descriptor mapping face keys to slices in a flat backing buffer.
 
     Parameters
     ----------
-    faces : Mapping[K, FaceSlot[K]]
-        Ordered mapping from face key to :class:`FaceSlot`. Iteration
+    blocks : Mapping[K, LayoutBlock[K]]
+        Ordered mapping from face key to :class:`LayoutBlock`. Iteration
         order determines flat-buffer concatenation order (which matters
         for reproducible serialization and snapshot comparison).
     total_size : int
         Total length of the flat backing buffer. Must equal the sum of
-        each face's :attr:`FaceSlot.flat_size`.
+        each face's :attr:`LayoutBlock.flat_size`.
 
     Notes
     -----
     The descriptor is IMMUTABLE; the backing buffer it describes is
-    owned elsewhere. A single :class:`FaceLayout` can be shared across
+    owned elsewhere. A single :class:`CoproductLayout` can be shared across
     arbitrarily many :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
     instances on the same mesh (validity invariant: same layout
     identity ⟹ compatible algebra).
     """
 
-    faces: Mapping[K, FaceSlot[K]]
+    blocks: Mapping[K, LayoutBlock[K]]
     total_size: int
 
     def __post_init__(self) -> None:
-        expected = sum(slot.flat_size for slot in self.faces.values())
+        expected = sum(slot.flat_size for slot in self.blocks.values())
         if self.total_size != expected:
             raise ValueError(
-                f"FaceLayout: total_size={self.total_size} does not match "
+                f"CoproductLayout: total_size={self.total_size} does not match "
                 f"sum(slot.flat_size for face slots) = {expected}"
             )
         # Validate no slot overlap or gap.
-        sorted_slots = sorted(self.faces.values(), key=lambda s: s.offset)
+        sorted_slots = sorted(self.blocks.values(), key=lambda s: s.offset)
         cursor = 0
         for slot in sorted_slots:
             if slot.offset != cursor:
                 raise ValueError(
-                    f"FaceLayout: slot {slot.key!r} starts at offset "
+                    f"CoproductLayout: slot {slot.key!r} starts at offset "
                     f"{slot.offset} but cursor is at {cursor} "
                     f"(gap or overlap with previous slot)"
                 )
             cursor += slot.flat_size
         if cursor != self.total_size:
             raise ValueError(
-                f"FaceLayout: cursor reached {cursor} after walking all "
+                f"CoproductLayout: cursor reached {cursor} after walking all "
                 f"slots but total_size={self.total_size}"
             )
 
@@ -194,7 +194,7 @@ class FaceLayout(Generic[K]):  # concept: layout | role: arm | kind: set
         """
         return tuple(
             (key, int(slot.offset), int(slot.flat_size))
-            for key, slot in self.faces.items()
+            for key, slot in self.blocks.items()
         )
 
     def pack(self, face_arrays: Mapping[K, NDArray]) -> NDArray:
@@ -215,19 +215,19 @@ class FaceLayout(Generic[K]):  # concept: layout | role: arm | kind: set
             array's shape mismatches its slot.
         """
         provided = set(face_arrays.keys())
-        expected = set(self.faces.keys())
+        expected = set(self.blocks.keys())
         if provided != expected:
             raise ValueError(
-                f"FaceLayout.pack: face_arrays keys "
+                f"CoproductLayout.pack: face_arrays keys "
                 f"{sorted(provided, key=repr)!r} do not match the "
                 f"layout's faces {sorted(expected, key=repr)!r}"
             )
         flat = np.zeros(self.total_size)
-        for name, slot in self.faces.items():
+        for name, slot in self.blocks.items():
             arr = np.asarray(face_arrays[name])
             if arr.shape != slot.shape:
                 raise ValueError(
-                    f"FaceLayout.pack: face {name!r} array shape "
+                    f"CoproductLayout.pack: face {name!r} array shape "
                     f"{arr.shape!r} does not match its slot shape "
                     f"{slot.shape!r}"
                 )
@@ -237,16 +237,16 @@ class FaceLayout(Generic[K]):  # concept: layout | role: arm | kind: set
     @classmethod
     def from_named_shapes(
         cls, named_shapes: "Sequence[tuple[K, tuple[int, ...]]]",
-    ) -> "FaceLayout[K]":
-        r"""Build a :class:`FaceLayout` from an ordered list of ``(key, shape)`` pairs.
+    ) -> "CoproductLayout[K]":
+        r"""Build a :class:`CoproductLayout` from an ordered list of ``(key, shape)`` pairs.
 
         Iteration order of ``named_shapes`` determines the flat-buffer
         offset assignment (first face gets offset 0, second face gets
         offset = first face's flat_size, etc.). Use this constructor
         when the per-method mesh has a natural face ordering it wants
         to expose. Key-generic: the SN spatial trace passes ``str`` face
-        names (``FaceLayout[str]``); the ψ½ starting-direction space passes
-        ``(level, sign, part)`` tuples (``FaceLayout[tuple[int, int, str]]``).
+        names (``CoproductLayout[str]``); the ψ½ starting-direction space passes
+        ``(level, sign, part)`` tuples (``CoproductLayout[tuple[int, int, str]]``).
 
         Parameters
         ----------
@@ -255,28 +255,28 @@ class FaceLayout(Generic[K]):  # concept: layout | role: arm | kind: set
 
         Returns
         -------
-        FaceLayout[K]
+        CoproductLayout[K]
             The constructed layout.
 
         Examples
         --------
-        >>> layout = FaceLayout.from_named_shapes([
+        >>> layout = CoproductLayout.from_named_shapes([
         ...     ("xmin", (2, 1)),
         ...     ("xmax", (2, 1)),
         ... ])
         >>> layout.total_size
         4
-        >>> layout.faces["xmin"].offset
+        >>> layout.blocks["xmin"].offset
         0
-        >>> layout.faces["xmax"].offset
+        >>> layout.blocks["xmax"].offset
         2
         """
-        faces: dict[K, FaceSlot[K]] = {}
+        faces: dict[K, LayoutBlock[K]] = {}
         cursor = 0
         for key, shape in named_shapes:
             flat_size = int(np.prod(shape))
-            faces[key] = FaceSlot(
+            faces[key] = LayoutBlock(
                 key=key, offset=cursor, shape=shape, flat_size=flat_size,
             )
             cursor += flat_size
-        return cls(faces=faces, total_size=cursor)
+        return cls(blocks=faces, total_size=cursor)

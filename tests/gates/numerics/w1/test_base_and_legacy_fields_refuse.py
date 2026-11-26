@@ -30,7 +30,7 @@ def _require(cond: object, msg: str) -> None:
 def arm_instances() -> dict[str, object]:
     r"""One instance per allow-listed arm, keyed by the arm's module-qualified name; the radial base is represented by its two subclasses."""
     from orpheus.numerics.axis import EnergyAxis
-    from orpheus.numerics.face_layout import FaceLayout
+    from orpheus.numerics.coproduct_layout import CoproductLayout
     from orpheus.numerics.factor import Factor, Kind, VarianceChart
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.numerics.space import TensorSpace
@@ -41,7 +41,7 @@ def arm_instances() -> dict[str, object]:
     from orpheus.numerics.coupled_system import CoupledSpace
 
     quad = Quadrature.gauss_legendre(4)
-    layout = FaceLayout.from_named_shapes([("xmin", (quad.n_ordinates, 1)), ("xmax", (quad.n_ordinates, 1))])
+    layout = CoproductLayout.from_named_shapes([("xmin", (quad.n_ordinates, 1)), ("xmax", (quad.n_ordinates, 1))])
     angular = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
     scalar = ScalarTraceSpace.for_faces([("xmin", ()), ("xmax", ())], 2, {"xmin": 1.0, "xmax": 1.0})
     levels, volumes = (0, 2, 5), np.array([1.5, 2.5, 3.5, 4.5])

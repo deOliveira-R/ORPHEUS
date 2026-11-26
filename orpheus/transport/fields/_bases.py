@@ -33,7 +33,7 @@ provides the *locus + family* axes as ABCs; the *role* leaves
      │   │   └─ ScalarSourceSink       role leaf  (source; renamed from IsotropicSource in B.2)
      │   └─ MomentField (ABC)     + L + the carrier's cached space via SNProblem.moment_space(L, width) (space_on)
      │       └─ HarmonicMomentFlux   role leaf  (flux-only for now)
-     └─ FaceField[K] (ABC)        codim-1 (faces/edges): flat single-buffer + FaceLayout[K]
+     └─ FaceField[K] (ABC)        codim-1 (faces/edges): flat single-buffer + CoproductLayout[K]
          │                        slice-views + layout guards + space_on via _face_space_of. STRUCTURE only — the metric descends PER LEAF
          │                        (spatial |Ω·n̂|·w; pole V_cell), never on this ABC (ERR-067).
          ├─ BoundaryField (ABC, FaceField[str])   SPATIAL faces (keyed by name) + from_face_arrays;
@@ -112,12 +112,12 @@ from orpheus.numerics.axis_marginal import AxisRetractionOperator
 
 if TYPE_CHECKING:
     from orpheus.numerics.coefficient_layout import DegreeLayout
-    from orpheus.numerics.face_layout import FaceLayout
+    from orpheus.numerics.coproduct_layout import CoproductLayout
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
 #: The face-key type of a :class:`FaceField` and its
-#: :class:`~orpheus.numerics.face_layout.FaceLayout`: ``str`` face names for
+#: :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`: ``str`` face names for
 #: the spatial :class:`BoundaryField`, the ``(level, sign)`` tuple for
 #: the ψ½ split loci. Bounded by
 #: :class:`~collections.abc.Hashable` — the face key is a mapping key.
@@ -1070,7 +1070,7 @@ class FaceField(RolePair, Field, Generic[K]):  # concept: member | role: arm | k
 
     def __post_init__(self) -> None:
         super().__post_init__()  # Field: values.shape == space.shape.
-        # The space IS the face space and carries the FaceLayout
+        # The space IS the face space and carries the CoproductLayout
         # (illegal-states-unrepresentable): a face field on a layout-less
         # space cannot do face_view. Families ADD their space-type narrowing
         # (AngularTraceSpace / ScalarTraceSpace / the split ψ½ spaces) on
@@ -1122,12 +1122,12 @@ class FaceField(RolePair, Field, Generic[K]):  # concept: member | role: arm | k
     # ── Per-face access (slice views into the flat buffer) ───────────
 
     @property
-    def layout(self) -> "FaceLayout[K]":
-        r"""The per-geometry :class:`FaceLayout`, read off the space.
+    def layout(self) -> "CoproductLayout[K]":
+        r"""The per-geometry :class:`CoproductLayout`, read off the space.
 
         The layout lives on the face space (``space.layout``), not as a
         separate field attribute. This read-through property preserves the
-        ``field.layout`` access surface (``field.layout.faces``,
+        ``field.layout`` access surface (``field.layout.blocks``,
         ``.total_size``).
         """
         return self.space.layout  # type: ignore[attr-defined]
@@ -1142,12 +1142,12 @@ class FaceField(RolePair, Field, Generic[K]):  # concept: member | role: arm | k
         KeyError
             If ``key`` is not a face in this layout.
         """
-        if key not in self.layout.faces:
+        if key not in self.layout.blocks:
             raise KeyError(
                 f"{type(self).__name__}: no face keyed {key!r} in layout; "
-                f"available: {list(self.layout.faces)!r}"
+                f"available: {list(self.layout.blocks)!r}"
             )
-        return self.layout.faces[key].slice_view(self.values)
+        return self.layout.blocks[key].slice_view(self.values)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1201,7 +1201,7 @@ class BoundaryField(FaceField[str]):  # concept: member | role: arm | kind: elem
         per-face dict.
 
         The packing loop is the layout's own
-        :meth:`~orpheus.numerics.face_layout.FaceLayout.pack` (native
+        :meth:`~orpheus.numerics.coproduct_layout.CoproductLayout.pack` (native
         place, CS4b S6.2) — this factory contributes exactly what the
         layout cannot know: WHICH space the mesh mints for this family
         (the space-level admission below) and the typed field wrap.
@@ -1220,7 +1220,7 @@ class BoundaryField(FaceField[str]):  # concept: member | role: arm | kind: elem
 
         The space-keyed form of :meth:`from_face_arrays`: the caller holds the trace space (built by
         :mod:`orpheus.transport.phase_spaces`, or read off a carrier) instead of a carrier. The keys and per-face
-        shapes are checked by :meth:`~orpheus.numerics.face_layout.FaceLayout.pack`, and the space's family by the
+        shapes are checked by :meth:`~orpheus.numerics.coproduct_layout.CoproductLayout.pack`, and the space's family by the
         typed wrap.
 
         Raises
@@ -1233,7 +1233,7 @@ class BoundaryField(FaceField[str]):  # concept: member | role: arm | kind: elem
         if layout is None:
             raise ValueError(
                 f"{cls.__name__}.from_face_arrays_on: the trace space carries "
-                f"no FaceLayout (a bare-constructor space, not one built "
+                f"no CoproductLayout (a bare-constructor space, not one built "
                 f"via its factory). A trace field cannot be packed "
                 f"without a face layout."
             )
@@ -1273,7 +1273,7 @@ class AngularBoundaryField(BoundaryField):  # concept: member | role: arm | kind
         if not isinstance(self.space, AngularTraceSpace):
             raise TypeError(
                 f"{type(self).__name__} requires an AngularTraceSpace carrying a "
-                f"FaceLayout (A.5 re-home); got space={self.space!r}. Build "
+                f"CoproductLayout (A.5 re-home); got space={self.space!r}. Build "
                 f"via {type(self).__name__}.from_face_arrays, or pass "
                 f"mesh.angular_trace as the space."
             )

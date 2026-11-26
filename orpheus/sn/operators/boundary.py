@@ -278,7 +278,7 @@ class SNBoundaryOperator(LinearOperator):  # concept: realized | role: weld | ki
         """
         return {
             face: self.problem.bc[face]
-            for face in self.problem.angular_trace.layout.faces
+            for face in self.problem.angular_trace.layout.blocks
         }
 
     @property
@@ -322,7 +322,7 @@ class SNBoundaryOperator(LinearOperator):  # concept: realized | role: weld | ki
           curvilinear mesh carries ``xmax`` alone, so a wrap installed there
           names a partner the trace has no slot for.
         """
-        faces = self.problem.angular_trace.layout.faces
+        faces = self.problem.angular_trace.layout.blocks
         domains = {face: self.problem.bc[face].domain_face for face in faces}
         if sorted(domains.values()) != sorted(faces):
             unknown = sorted(set(domains.values()) - set(faces))

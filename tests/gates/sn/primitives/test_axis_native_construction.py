@@ -118,8 +118,8 @@ def test_d2_metadata_byte_identical_axis_vs_legacy() -> None:
     for face in legacy.bc:
         np.testing.assert_equal(type(native.bc[face]), type(legacy.bc[face]))
     np.testing.assert_equal(
-        native.angular_trace.layout.faces.keys(),
-        legacy.angular_trace.layout.faces.keys(),
+        native.angular_trace.layout.blocks.keys(),
+        legacy.angular_trace.layout.blocks.keys(),
     )
 
 
@@ -279,8 +279,8 @@ def test_d3_cartesian_builds_trace_and_bc_inventory() -> None:
         (_carrier6 := _d3_axes()), Quadrature.level_symmetric(sn_order=4), _MATERIALS, boundary_conditions=conditions_for(_carrier6, _CONDITIONS),
     )
     six = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
-    np.testing.assert_equal(tuple(m.angular_trace.layout.faces), six)
-    np.testing.assert_equal(tuple(m.angular_trace.layout.faces), six)
+    np.testing.assert_equal(tuple(m.angular_trace.layout.blocks), six)
+    np.testing.assert_equal(tuple(m.angular_trace.layout.blocks), six)
     np.testing.assert_equal(sorted(m.bc), sorted(six))
     np.testing.assert_equal(
         tuple(label.face_name for label in m.face_labels), six,
@@ -421,7 +421,7 @@ def test_2d_cylindrical_mesh_refused_at_construction() -> None:
 def test_d2_trace_builds_for_every_constructible_geometry() -> None:
     """C5-G8: trace is UNCONDITIONAL — every constructible SNProblem has one."""
     slab = _slab_sn()
-    np.testing.assert_equal(sorted(slab.angular_trace.layout.faces), ["xmax", "xmin"])
+    np.testing.assert_equal(sorted(slab.angular_trace.layout.blocks), ["xmax", "xmin"])
     sphere = SNProblem.from_axes(
         (_carrier10 := (RadialAxisMesh(
             edges=np.linspace(0.0, 1.0, 4),
@@ -429,4 +429,4 @@ def test_d2_trace_builds_for_every_constructible_geometry() -> None:
         ),)),
         Quadrature.gauss_legendre(n_ordinates=8), _MATERIALS, boundary_conditions=conditions_for(_carrier10, _CURVED),
     )
-    np.testing.assert_equal(tuple(sphere.angular_trace.layout.faces), ("xmax",))
+    np.testing.assert_equal(tuple(sphere.angular_trace.layout.blocks), ("xmax",))

@@ -1,14 +1,14 @@
-r"""The typed-key ``FaceLayout[K]`` — the ψ½ split spaces' ``(level, sign)`` layout.
+r"""The typed-key ``CoproductLayout[K]`` — the ψ½ split spaces' ``(level, sign)`` layout.
 
 C2a of the codim-1 ``FaceField`` carve migrated the ψ½ spaces off their
 hand-rolled ``_leg_offset``/``cells_slice``/``corner_slice`` arithmetic onto a
-real :class:`~orpheus.numerics.face_layout.FaceLayout`, keyed by the structured
+real :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`, keyed by the structured
 tuple instead of the spatial trace's ``str`` face names. Phase C 4e retired the
 UNIFIED ``RadialCharacteristicSpace`` (one flat buffer keyed by the 3-tuple
 ``(level, sign, part)``); the split
 :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicInteriorSpace`
 / :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicBoundarySpace`
-are the successors — each a ``FaceLayout[tuple[int, int]]`` keyed by
+are the successors — each a ``CoproductLayout[tuple[int, int]]`` keyed by
 ``(level, sign)``, single-sourced from the SAME
 :func:`~orpheus.numerics.spaces.radial_characteristic_space._radial_characteristic_legs`
 walk (so the level-stride generalization this module pins survives the split).
@@ -94,7 +94,7 @@ def _assert_layout_matches_closed_form(
     for level in levels:
         for sign in _SIGN_ORDER:
             key = (level, sign)
-            islot = interior.layout.faces[key]
+            islot = interior.layout.blocks[key]
             i_off, i_shape, i_flat = _closed_form_interior_slot(
                 levels, ng, nx, level, sign,
             )
@@ -108,7 +108,7 @@ def _assert_layout_matches_closed_form(
                 islot.flat_size, i_flat,
                 err_msg=f"interior flat_size mismatch at {key}",
             )
-            bslot = boundary.layout.faces[key]
+            bslot = boundary.layout.blocks[key]
             b_off, b_shape, b_flat = _closed_form_boundary_slot(
                 levels, ng, level, sign,
             )
@@ -180,8 +180,8 @@ def test_multilevel_metric_weights_correspond_to_the_layout_slots():
     b_w = np.asarray(boundary.inner_product_weights)
     for level in _LEVELS:
         for sign in _SIGN_ORDER:
-            cells = interior.layout.faces[(level, sign)]
-            corner = boundary.layout.faces[(level, sign)]
+            cells = interior.layout.blocks[(level, sign)]
+            corner = boundary.layout.blocks[(level, sign)]
             cells_w = i_w[cells.offset : cells.offset + cells.flat_size]
             corner_w = b_w[corner.offset : corner.offset + corner.flat_size]
             # cells: V_cell per group (ng tiled copies of the nx-vector).

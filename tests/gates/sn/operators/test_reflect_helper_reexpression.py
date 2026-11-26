@@ -83,7 +83,7 @@ def _random_trace(problem, *, seed: int) -> AngularBoundaryFlux:
     """
     trace = AngularBoundaryFlux.zeros(problem.angular_trace)
     rng = np.random.default_rng([seed, 7])
-    for face in trace.layout.faces:
+    for face in trace.layout.blocks:
         view = trace.face_view(face)
         view[...] = rng.standard_normal(view.shape)
     return trace
@@ -187,7 +187,7 @@ def test_g5_1_zero_then_add_reproduces_the_assignment_bit_for_bit(geometry):
 
     inflow_magnitudes = {
         face: float(np.abs(old.face_view(face)[trace.inflow_indices_for_face(face)]).max())
-        for face in old.layout.faces
+        for face in old.layout.blocks
     }
     if min(inflow_magnitudes.values(), default=0.0) <= 0.0:
         pytest.fail(
@@ -212,7 +212,7 @@ def test_g5_1_zero_then_add_reproduces_the_assignment_bit_for_bit(geometry):
     # The helper — zero the inflow rows, then ADD through the full-inflow mask.
     reflect_outflow_into_inflow(new, problem)
 
-    for face in new.layout.faces:
+    for face in new.layout.blocks:
         rows = trace.inflow_indices_for_face(face)
         if not np.array_equal(via_apply.face_view(face)[rows], new.face_view(face)[rows]):
             pytest.fail(
@@ -254,7 +254,7 @@ def test_g5_1b_dropping_the_zeroing_is_the_positive_control(geometry):
             boundary=old,
         )
     ).boundary
-    mask.reflect_rows_inplace(unzeroed, tuple(unzeroed.layout.faces))
+    mask.reflect_rows_inplace(unzeroed, tuple(unzeroed.layout.blocks))
 
     trace = problem.angular_trace
     delta = max(
@@ -262,7 +262,7 @@ def test_g5_1b_dropping_the_zeroing_is_the_positive_control(geometry):
             via_apply.face_view(face)[trace.inflow_indices_for_face(face)]
             - unzeroed.face_view(face)[trace.inflow_indices_for_face(face)]
         ).max())
-        for face in unzeroed.layout.faces
+        for face in unzeroed.layout.blocks
     )
     if delta < 1e-3:
         pytest.fail(

@@ -858,8 +858,8 @@ class StreamingCollisionOperator(FusedAtom["FullField"], ScheduleTriangularForwa
         seed_boundary = rhs.boundary
         # Per-face copy via L2 face_view — works for slab (xmin, xmax),
         # curvilinear (xmax only), and 2-D Cartesian (all 4).
-        for face_name in boundary_buf.layout.faces:
-            if face_name in seed_boundary.layout.faces:
+        for face_name in boundary_buf.layout.blocks:
+            if face_name in seed_boundary.layout.blocks:
                 boundary_buf.face_view(face_name)[:] = (
                     seed_boundary.face_view(face_name)
                 )
@@ -904,8 +904,8 @@ class StreamingCollisionOperator(FusedAtom["FullField"], ScheduleTriangularForwa
         # Tangential rows (excluded from both selectors) keep their
         # seeded copy untouched — the identity-row inverse.
         trace_space = problem.angular_trace
-        for face_name in boundary_buf.layout.faces:
-            if face_name not in seed_boundary.layout.faces:
+        for face_name in boundary_buf.layout.blocks:
+            if face_name not in seed_boundary.layout.blocks:
                 continue
             out_rows = trace_space.outflow_indices_for_face(face_name)
             if out_rows.size:
@@ -1027,8 +1027,8 @@ class StreamingCollisionOperator(FusedAtom["FullField"], ScheduleTriangularForwa
         # Physical adjoint paths are bit-inert here for the same reason
         # the forward is: their sources carry zero on these rows.
         trace_space = problem.angular_trace
-        for face_name in boundary_out.layout.faces:
-            if face_name not in b.boundary.layout.faces:
+        for face_name in boundary_out.layout.blocks:
+            if face_name not in b.boundary.layout.blocks:
                 continue
             out_rows = trace_space.outflow_indices_for_face(face_name)
             if out_rows.size:

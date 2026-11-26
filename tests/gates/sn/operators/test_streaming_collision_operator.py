@@ -615,9 +615,9 @@ class TestSolveTimedFullField:
         rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space)
         rhs_boundary = rhs.boundary
         layout = rhs_boundary.layout
-        if "xmax" in layout.faces:
+        if "xmax" in layout.blocks:
             rhs_boundary.face_view("xmax")[:] = 0.7
-        if "xmin" in layout.faces:
+        if "xmin" in layout.blocks:
             rhs_boundary.face_view("xmin")[:] = 0.3
 
         # Outcome-level spy: capture the boundary_buf as the

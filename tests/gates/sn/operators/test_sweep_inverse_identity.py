@@ -124,7 +124,7 @@ class TestSweepInverseIdentity:
             )
         n_live = 0
         n_degenerate = 0
-        for face in rhs_a.boundary.layout.faces:
+        for face in rhs_a.boundary.layout.blocks:
             live = np.union1d(
                 trace.inflow_indices_for_face(face),
                 trace.outflow_indices_for_face(face),
@@ -191,13 +191,13 @@ class TestSweepInverseIdentity:
         trace = problem.angular_trace
         boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
         rng = np.random.default_rng(23)
-        for face in boundary.layout.faces:
+        for face in boundary.layout.blocks:
             out_rows = trace.outflow_indices_for_face(face)
             view = boundary.face_view(face)
             view[out_rows] = rng.normal(size=view[out_rows].shape)
         if isinstance(lc, CoupledOperator):
             rhs_a = _zero_source_composite(problem)
-            for face in rhs_a.boundary.layout.faces:
+            for face in rhs_a.boundary.layout.blocks:
                 out_rows = trace.outflow_indices_for_face(face)
                 rhs_a.boundary.face_view(face)[out_rows] = (
                     np.asarray(boundary.face_view(face))[out_rows]

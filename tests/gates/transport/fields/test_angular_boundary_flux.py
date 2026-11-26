@@ -1,4 +1,4 @@
-r"""L0/L2 — pure-Field :class:`AngularBoundaryFlux` algebra, FaceLayout slice views,
+r"""L0/L2 — pure-Field :class:`AngularBoundaryFlux` algebra, CoproductLayout slice views,
 and flat-buffer round-trips.
 
 Pins the post-D-G contract for
@@ -6,7 +6,7 @@ Pins the post-D-G contract for
 
 * Inherits :class:`~orpheus.numerics.field.Field`; no hand-coded
   dunders.
-* Flat backing buffer + :class:`FaceLayout` produces per-face slice
+* Flat backing buffer + :class:`CoproductLayout` produces per-face slice
   views with NO copies (memory-shared).
 * Mesh-binding rejection (cross-mesh arithmetic raises even when
   spaces match).
@@ -62,7 +62,7 @@ pytestmark = [pytest.mark.foundation]
 
 def face_views(face_field: AngularBoundaryFlux) -> Mapping[str, NDArray]:
     """``{face_key: slice_view}`` for every face in the layout, memory-shared with ``face_field.values``."""
-    return {key: face_field.face_view(key) for key in face_field.layout.faces}
+    return {key: face_field.face_view(key) for key in face_field.layout.blocks}
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -200,28 +200,28 @@ class TestFieldAlgebraInherited:
 
 
 # ───────────────────────────────────────────────────────────────────────
-# B. FaceLayout — slice views, no copies, all geometries
+# B. CoproductLayout — slice views, no copies, all geometries
 # ───────────────────────────────────────────────────────────────────────
 
 
-class TestFaceLayoutSliceViews:
+class TestCoproductLayoutSliceViews:
     def test_slab_layout_has_xmin_and_xmax(self) -> None:
         m = slab_mesh(nx=5)
         trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
         bf = AngularBoundaryFlux.zeros(trace)
-        assert set(bf.layout.faces) == {"xmin", "xmax"}
+        assert set(bf.layout.blocks) == {"xmin", "xmax"}
 
     def test_sphere_layout_has_only_xmax(self) -> None:
         m = _sphere_mesh()
         trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
         bf = AngularBoundaryFlux.zeros(trace)
-        assert set(bf.layout.faces) == {"xmax"}
+        assert set(bf.layout.blocks) == {"xmax"}
 
     def test_cartesian_2d_layout_has_four_faces(self) -> None:
         m = _cartesian_2d_mesh()
         trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
         bf = AngularBoundaryFlux.zeros(trace)
-        assert set(bf.layout.faces) == {"xmin", "xmax", "ymin", "ymax"}
+        assert set(bf.layout.blocks) == {"xmin", "xmax", "ymin", "ymax"}
 
     def test_face_view_is_memory_shared_slab(self) -> None:
         """face_view returns a view, NOT a copy — writes propagate."""
@@ -231,8 +231,8 @@ class TestFaceLayoutSliceViews:
         xmin_view = bf.face_view("xmin")
         # Write through the view; flat buffer reflects the change.
         xmin_view[...] = 7.0
-        flat_start = bf.layout.faces["xmin"].offset
-        flat_end = flat_start + bf.layout.faces["xmin"].flat_size
+        flat_start = bf.layout.blocks["xmin"].offset
+        flat_end = flat_start + bf.layout.blocks["xmin"].flat_size
         np.testing.assert_array_equal(bf.values[flat_start:flat_end], 7.0)
 
     def test_face_view_is_memory_shared_2d_xmin(self) -> None:
@@ -243,7 +243,7 @@ class TestFaceLayoutSliceViews:
         N = posing_quadrature(m).n_ordinates
         assert xmin_view.shape == (N, m.ng, m.spatial_shape[1])
         xmin_view[0, 0, 0] = 9.0
-        flat_idx = bf.layout.faces["xmin"].offset
+        flat_idx = bf.layout.blocks["xmin"].offset
         assert bf.values[flat_idx] == 9.0
 
     def test_face_shapes_match_per_geometry(self) -> None:
@@ -280,7 +280,7 @@ class TestFaceLayoutSliceViews:
         m = _cartesian_2d_mesh(nx=3, ny=2, ng=2)
         trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
         bf = AngularBoundaryFlux.zeros(trace)
-        total = sum(slot.flat_size for slot in bf.layout.faces.values())
+        total = sum(slot.flat_size for slot in bf.layout.blocks.values())
         assert bf.layout.total_size == total
         assert bf.values.shape == (total,)
 
@@ -346,10 +346,10 @@ class TestFlatBufferRoundTrip:
         bf = AngularBoundaryFlux.zeros(trace)
         bf.face_view("xmin")[...] = 1.0
         bf.face_view("xmax")[...] = 2.0
-        xmin_off = bf.layout.faces["xmin"].offset
-        xmin_size = bf.layout.faces["xmin"].flat_size
-        xmax_off = bf.layout.faces["xmax"].offset
-        xmax_size = bf.layout.faces["xmax"].flat_size
+        xmin_off = bf.layout.blocks["xmin"].offset
+        xmin_size = bf.layout.blocks["xmin"].flat_size
+        xmax_off = bf.layout.blocks["xmax"].offset
+        xmax_size = bf.layout.blocks["xmax"].flat_size
         np.testing.assert_array_equal(bf.values[xmin_off:xmin_off + xmin_size], 1.0)
         np.testing.assert_array_equal(bf.values[xmax_off:xmax_off + xmax_size], 2.0)
 
@@ -374,7 +374,7 @@ class TestFlatBufferRoundTrip:
         bf1.values[:] = rng.standard_normal(bf1.values.shape)
         bf2.values[:] = rng.standard_normal(bf2.values.shape)
         out = bf1 - bf2  # same-class signed difference — shares the trace layout
-        for name in bf1.layout.faces:
+        for name in bf1.layout.blocks:
             np.testing.assert_array_equal(
                 out.face_view(name),
                 bf1.face_view(name) - bf2.face_view(name),
@@ -399,14 +399,14 @@ class TestConstruction:
         m = _sphere_mesh()
         trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
         bf = AngularBoundaryFlux.zeros(trace)
-        assert "xmin" not in bf.layout.faces
+        assert "xmin" not in bf.layout.blocks
         np.testing.assert_array_equal(bf.values, 0.0)
 
     def test_zeros_2d(self) -> None:
         m = _cartesian_2d_mesh()
         trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
         bf = AngularBoundaryFlux.zeros(trace)
-        assert set(bf.layout.faces) == {"xmin", "xmax", "ymin", "ymax"}
+        assert set(bf.layout.blocks) == {"xmin", "xmax", "ymin", "ymax"}
 
     def test_post_init_validates_shape(self) -> None:
         """Constructing with values.shape != (layout.total_size,) raises."""
@@ -419,7 +419,7 @@ class TestConstruction:
             )
 
     def test_post_init_requires_trace_space(self) -> None:
-        """A.5: the space MUST be an AngularTraceSpace carrying a FaceLayout —
+        """A.5: the space MUST be an AngularTraceSpace carrying a CoproductLayout —
         a layout-less plain FunctionSpace cannot back an AngularBoundaryFlux
         (illegal-states-unrepresentable; ``face_view`` needs the layout)."""
         m = slab_mesh(nx=5)

@@ -75,7 +75,7 @@ def test_the_problems_mints_are_the_constructors_on_its_own_ingredients(geometry
 def test_the_carrier_keyed_packing_is_the_space_keyed_packing_on_the_problems_trace(geometry: str, scheme: str) -> None:
     problem, _ = _pose(geometry, scheme)
     rng = np.random.default_rng(3)
-    arrays = {key: rng.standard_normal(slot.shape) for key, slot in problem.angular_trace.layout.faces.items()}
+    arrays = {key: rng.standard_normal(slot.shape) for key, slot in problem.angular_trace.layout.blocks.items()}
     by_carrier = AngularBoundaryFlux.from_face_arrays(problem, arrays)
     by_space = AngularBoundaryFlux.from_face_arrays_on(problem.angular_trace, arrays)
     if by_carrier.space is not problem.angular_trace or by_space.space is not problem.angular_trace:

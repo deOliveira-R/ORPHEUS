@@ -2273,8 +2273,8 @@ them.  Trust ``git``, not this column.
        :math:`1 \times 1` Parseval metric instead of being chosen by hand.
        ``integrate_angular`` and ``from_isotropic`` re-key onto the pair,
        and the per-face packing loop re-homes to its layout's own
-       :meth:`FaceLayout.pack
-       <orpheus.numerics.face_layout.FaceLayout.pack>` (native place).
+       :meth:`CoproductLayout.pack
+       <orpheus.numerics.coproduct_layout.CoproductLayout.pack>` (native place).
        Full account: :ref:`spaces-collapse-pair` on
        :doc:`/theory/foundations/spaces`; the field-layer narrative is on
        :doc:`/theory/foundations/field_algebra`.  **(5) The mesh-less

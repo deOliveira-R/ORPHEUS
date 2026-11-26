@@ -8,7 +8,7 @@ through the view MUST propagate to the stored ``values`` array.
 
 If ``face_view`` ever silently returns a copy (e.g. via an upstream
 NumPy refactor that breaks the slice/reshape view chain in
-:class:`FaceSlot.slice_view`), the SN sweep's persistent partner-flux
+:class:`LayoutBlock.slice_view`), the SN sweep's persistent partner-flux
 plumbing fails silently — every BC apply on a "writable" view would
 no-op the persistence, the reflective BC fixed point would drift to
 vacuum, and the surface eventually catches it as a divergent k_eff
@@ -105,7 +105,7 @@ def test_face_view_inplace_mutation_propagates_to_backing(
     ``face_view(face)[...] = sentinel``, then re-fetch via
     ``face_view(face)`` and verify the sentinel reads back.  Catches
     a regression where ``face_view`` returns a copy (writes lost) or
-    where ``FaceSlot.slice_view`` doesn't preserve the view chain
+    where ``LayoutBlock.slice_view`` doesn't preserve the view chain
     (writes silently propagate to scratch).
     """
     mesh = mesh_builder()
@@ -148,7 +148,7 @@ def test_face_view_writes_appear_in_flat_values(
     layout = boundary.layout
     for i, face in enumerate(faces):
         sentinel = 1.0 + i * 0.25
-        slot = layout.faces[face]
+        slot = layout.blocks[face]
         flat_slice = boundary.values[slot.offset:slot.offset + slot.flat_size]
         assert np.allclose(flat_slice, sentinel), (
             f"Flat backing slice for face {face!r} on {name}: expected "
@@ -163,7 +163,7 @@ def test_face_view_returns_distinct_views_per_face(
     r"""Different face names must yield disjoint views into the flat backing.
 
     Catches a layout regression where two face slots accidentally
-    alias (e.g. an off-by-one in ``FaceLayout.from_named_shapes``
+    alias (e.g. an off-by-one in ``CoproductLayout.from_named_shapes``
     offset computation).  Write a distinct sentinel to each face;
     verify each face reads back ITS sentinel, not its neighbour's.
     """

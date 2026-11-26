@@ -61,10 +61,10 @@ flat-backing precedent::
 
 Access goes through :meth:`cells_view` / :meth:`corner_view` — slice
 views into the flat buffer, no copies. The offsets are sourced from a
-real :class:`~orpheus.numerics.face_layout.FaceLayout` carried on the
+real :class:`~orpheus.numerics.coproduct_layout.CoproductLayout` carried on the
 space layouts, keyed by the structured
 ``(level, sign, part)`` tuple — the SAME flat-buffer discipline the
-spatial trace uses with ``str`` face-name keys (``FaceLayout[str]``), the
+spatial trace uses with ``str`` face-name keys (``CoproductLayout[str]``), the
 key merely typed instead of stringly.
 
 The state metric — radial cell volume :math:`V_{\rm cell}` (SPD)
@@ -182,7 +182,7 @@ from typing import ClassVar, NamedTuple, Self
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.space import FunctionSpace
 
 __all__ = [
@@ -336,7 +336,7 @@ class _RadialCharacteristicSubSpace(FunctionSpace):  # concept: rayspace | role:
       (``(ng,)`` ψ½ at r = R), B_b's BC locus (inflow = data / outflow = defect),
       metric ``G = V(r = R)``.
 
-    Both are ``FaceLayout[tuple[int, int]]`` spaces keyed by ``(level, sign)``,
+    Both are ``CoproductLayout[tuple[int, int]]`` spaces keyed by ``(level, sign)``,
     differing ONLY in their per-leg block and their name; each concrete subclass
     fixes those via the ``_PART`` / ``_SPACE_NAME`` ClassVars. The ``(level,
     sign)`` leg order AND the metric are single-sourced from
@@ -356,11 +356,11 @@ class _RadialCharacteristicSubSpace(FunctionSpace):  # concept: rayspace | role:
     levels: tuple[int, ...] = field(kw_only=True, compare=False, repr=False)
     ng: int = field(kw_only=True, compare=False, repr=False)
     nx: int = field(kw_only=True, compare=False, repr=False)
-    #: The flat-buffer :class:`~orpheus.numerics.face_layout.FaceLayout` keyed by
+    #: The flat-buffer :class:`~orpheus.numerics.coproduct_layout.CoproductLayout` keyed by
     #: ``(level, sign)`` (the ``part`` is fixed by ``_PART``). Metadata
     #: (``compare=False`` — identity stays ``(name, shape)``); built by
     #: :meth:`for_levels`.
-    layout: FaceLayout[tuple[int, int]] = field(
+    layout: CoproductLayout[tuple[int, int]] = field(
         kw_only=True, compare=False, repr=False,
     )
 
@@ -403,7 +403,7 @@ class _RadialCharacteristicSubSpace(FunctionSpace):  # concept: rayspace | role:
                 continue
             named_shapes.append((leg.split_key, leg.shape))
             metric_pieces.append(leg.metric)
-        layout = FaceLayout.from_named_shapes(named_shapes)
+        layout = CoproductLayout.from_named_shapes(named_shapes)
         # CS4b S3 (F2): the name carries a CONTENT digest — the level set,
         # the split layout, and the ray metric — so the inherited
         # ``(name, shape)`` equality IS content equality (mirrors the
@@ -462,7 +462,7 @@ class _RadialCharacteristicSubSpace(FunctionSpace):  # concept: rayspace | role:
         ``buffer``. The field leaves expose it under their own name
         (``cells`` / ``corner``).
         """
-        slot = self.layout.faces[self._slot_key(level, sign)]
+        slot = self.layout.blocks[self._slot_key(level, sign)]
         return slot.slice_view(buffer)
 
 

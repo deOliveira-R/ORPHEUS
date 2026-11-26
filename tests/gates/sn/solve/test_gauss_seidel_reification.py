@@ -119,7 +119,7 @@ def _consistent_state(sn, LC, *, seed: int):
     """
     raw = _random_state(sn, seed=seed)
     trace = sn.angular_trace
-    for face in raw.boundary.layout.faces:
+    for face in raw.boundary.layout.blocks:
         out_rows = trace.outflow_indices_for_face(face)
         raw.boundary.face_view(face)[out_rows] = 0.0
     return LC.solve(raw)
@@ -160,7 +160,7 @@ def test_w2_round_trip_machine_precision():
         err_msg="M⁻¹(Mx) ≠ x (bulk) — the reified G-S forward substitution "
                 "does not invert its OWN forward",
     )
-    for face in x.boundary.layout.faces:
+    for face in x.boundary.layout.blocks:
         np.testing.assert_allclose(
             np.asarray(rt.boundary.face_view(face)),
             np.asarray(x.boundary.face_view(face)),
@@ -198,13 +198,13 @@ def test_off_domain_outflow_rhs_is_not_completed_yet():
     # Structurally populate the outflow rows (an off-domain rhs — the
     # role-conflated iterate-trace cast ERR-071 documents).
     trace = sn.angular_trace
-    for face in y.boundary.layout.faces:
+    for face in y.boundary.layout.blocks:
         out_rows = trace.outflow_indices_for_face(face)
         y.boundary.face_view(face)[out_rows] = 1.0
     z = M.inverse().apply(_as_timed(y, x))
     defect = M.apply(z)
     worst = 0.0
-    for face in y.boundary.layout.faces:
+    for face in y.boundary.layout.blocks:
         in_rows = trace.inflow_indices_for_face(face)
         worst = max(worst, float(np.abs(
             np.asarray(defect.boundary.face_view(face))[in_rows]
@@ -260,7 +260,7 @@ def test_w2_split_exactness():
     psi = _random_state(sn, seed=13)  # raw random — a pure partition claim
     whole = B.apply(psi)
     summed = parts.lower.apply(psi) + parts.upper.apply(psi)
-    for face in psi.boundary.layout.faces:
+    for face in psi.boundary.layout.blocks:
         np.testing.assert_array_equal(
             np.asarray(whole.boundary.face_view(face)),
             np.asarray(summed.boundary.face_view(face)),
@@ -269,7 +269,7 @@ def test_w2_split_exactness():
         )
     # Row supports are complementary within each face's inflow.
     trace = sn.angular_trace
-    for face in psi.boundary.layout.faces:
+    for face in psi.boundary.layout.blocks:
         lo = np.asarray(parts.lower.rows.get(face, np.empty(0, dtype=np.intp)))
         up = np.asarray(parts.upper.rows[face])
         inflow = trace.inflow_indices_for_face(face)
@@ -292,7 +292,7 @@ def test_jacobi_schedule_split_is_degenerate():
     lower_out = parts.lower.apply(psi)
     whole = B.apply(psi)
     upper_out = parts.upper.apply(psi)
-    for face in psi.boundary.layout.faces:
+    for face in psi.boundary.layout.blocks:
         np.testing.assert_array_equal(
             np.asarray(lower_out.boundary.face_view(face)), 0.0,
             err_msg=f"Jacobi B_lower must be zero on {face}",

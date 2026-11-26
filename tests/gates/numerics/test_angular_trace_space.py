@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.coord import CoordSystem
-from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.numerics.quadrature import Quadrature
@@ -32,16 +32,16 @@ from orpheus.numerics.quadrature import Quadrature
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _slab_layout(N: int, ng: int = 1) -> FaceLayout:
-    return FaceLayout.from_named_shapes([("xmin", (N, ng)), ("xmax", (N, ng))])
+def _slab_layout(N: int, ng: int = 1) -> CoproductLayout:
+    return CoproductLayout.from_named_shapes([("xmin", (N, ng)), ("xmax", (N, ng))])
 
 
-def _curvilinear_layout(N: int, ng: int = 1) -> FaceLayout:
-    return FaceLayout.from_named_shapes([("xmax", (N, ng))])
+def _curvilinear_layout(N: int, ng: int = 1) -> CoproductLayout:
+    return CoproductLayout.from_named_shapes([("xmax", (N, ng))])
 
 
-def _cartesian2d_layout(N: int, ng: int, nx: int, ny: int) -> FaceLayout:
-    return FaceLayout.from_named_shapes([
+def _cartesian2d_layout(N: int, ng: int, nx: int, ny: int) -> CoproductLayout:
+    return CoproductLayout.from_named_shapes([
         ("xmin", (N, ng, ny)), ("xmax", (N, ng, ny)),
         ("ymin", (N, ng, nx)), ("ymax", (N, ng, nx)),
     ])
@@ -267,7 +267,7 @@ def test_unknown_face_in_layout_raises():
     # C5.3 (#225): "zmin" is a KNOWN face (the normal table derives
     # from AXIS_NAMES and carries all six axis-aligned faces) — the
     # unknown-face probe needs a name outside the axis world.
-    bad = FaceLayout.from_named_shapes([("wmin", (quad.n_ordinates, 1))])
+    bad = CoproductLayout.from_named_shapes([("wmin", (quad.n_ordinates, 1))])
     with pytest.raises(ValueError, match="Unknown face name"):
         AngularTraceSpace.from_quadrature_and_layout(quad, bad)
 
@@ -357,8 +357,8 @@ def _reference_trace_metric(space: AngularTraceSpace, quad) -> np.ndarray:
     trailing axes) — the cross-check ground for the production metric."""
     layout = space.layout
     ref = np.zeros((layout.total_size,), dtype=float)
-    for f_idx, face in enumerate(layout.faces):
-        slot = layout.faces[face]
+    for f_idx, face in enumerate(layout.blocks):
+        slot = layout.blocks[face]
         face_w = np.abs(space.omega_dot_n[f_idx]) * np.asarray(quad.weights)
         broadcast = np.broadcast_to(
             face_w.reshape((face_w.shape[0],) + (1,) * (len(slot.shape) - 1)),
@@ -418,7 +418,7 @@ def test_trace_metric_group_independent():
     slot equals ``|Ω·n_f|·w_n`` (no energy dependence)."""
     quad = Quadrature.gauss_legendre(8)
     space = _trace_1d(CoordSystem.CARTESIAN, quad, ng=3)
-    slot = space.layout.faces["xmax"]
+    slot = space.layout.blocks["xmax"]
     w_face = slot.slice_view(space.inner_product_weights)  # (N, ng)
     f_idx = space.face_names.index("xmax")
     expected_col = np.abs(space.omega_dot_n[f_idx]) * np.asarray(quad.weights)
@@ -441,7 +441,7 @@ def test_face_normals_z_derived_from_axis_names():
     Migrated at **B3.4c**: the module-private ``_FACE_NORMALS`` dict this
     asserted against was retired when the ``min``/``max`` ↔ sign convention
     collapsed onto the one bijection in
-    :mod:`orpheus.numerics.face_layout`. The CLAIM is unchanged and is
+    :mod:`orpheus.numerics.coproduct_layout`. The CLAIM is unchanged and is
     asserted here against the primitive this module now reads (the bijection's
     own laws — round-trip, involution — live in ``tests/gates/numerics/
     test_face_layout.py``); what moved is where the answer comes from.
@@ -462,7 +462,7 @@ def test_face_normals_z_derived_from_axis_names():
 def test_omega_dot_n_zmax_is_plus_mu_z():
     """C5-G10: the zmax row is exactly +mu_z, zmin exactly −mu_z."""
     quad = Quadrature.level_symmetric(sn_order=4)
-    layout = FaceLayout.from_named_shapes([
+    layout = CoproductLayout.from_named_shapes([
         ("zmin", (quad.n_ordinates, 1)), ("zmax", (quad.n_ordinates, 1)),
     ])
     trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
@@ -480,7 +480,7 @@ def test_omega_dot_n_all_six_faces_distinct_axes():
     """
     quad = Quadrature.level_symmetric(sn_order=4)
     faces = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
-    layout = FaceLayout.from_named_shapes(
+    layout = CoproductLayout.from_named_shapes(
         [(f, (quad.n_ordinates, 1)) for f in faces],
     )
     trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
@@ -508,7 +508,7 @@ def test_z_face_on_two_cosine_quadrature_fails_loud():
     """
     quad = Quadrature.gauss_legendre(8)
     np.testing.assert_array_equal(np.asarray(quad.mu_z), 0.0)  # non-vacuity
-    layout = FaceLayout.from_named_shapes([("zmin", (quad.n_ordinates, 1))])
+    layout = CoproductLayout.from_named_shapes([("zmin", (quad.n_ordinates, 1))])
     with pytest.raises(ValueError, match="rank-mismatch"):
         AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 
@@ -579,7 +579,7 @@ class TestTheInflowHalfSpaceIsTheIncomingOrdinates:
     def test_the_inflow_tier_is_the_ordinates_that_enter(self, case):
         make, faces = _LADDER_CASES[case]
         quad = make()
-        layout = FaceLayout.from_named_shapes([(f, (quad.n_ordinates, 1, 1)) for f in faces])
+        layout = CoproductLayout.from_named_shapes([(f, (quad.n_ordinates, 1, 1)) for f in faces])
         trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
         for face in faces:
             np.testing.assert_array_equal(
@@ -593,7 +593,7 @@ class TestTheInflowHalfSpaceIsTheIncomingOrdinates:
     def test_the_outflow_tier_is_the_ordinates_that_leave(self, case):
         make, faces = _LADDER_CASES[case]
         quad = make()
-        layout = FaceLayout.from_named_shapes([(f, (quad.n_ordinates, 1, 1)) for f in faces])
+        layout = CoproductLayout.from_named_shapes([(f, (quad.n_ordinates, 1, 1)) for f in faces])
         trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
         for face in faces:
             np.testing.assert_array_equal(

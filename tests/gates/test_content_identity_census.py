@@ -254,7 +254,7 @@ def test_s5_9_the_population_is_the_roster() -> None:
 def _space_names() -> dict[str, Callable[[], str]]:
     """Every derived space name the plan moves onto the encoder (5a)."""
     from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis
-    from orpheus.numerics.face_layout import FaceLayout
+    from orpheus.numerics.coproduct_layout import CoproductLayout
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.numerics.space import FunctionSpace
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
@@ -267,7 +267,7 @@ def _space_names() -> dict[str, Callable[[], str]]:
 
     def angular() -> AngularTraceSpace:
         quad = Quadrature.gauss_legendre(4)
-        layout = FaceLayout.from_named_shapes([("xmin", (quad.n_ordinates, 1)), ("xmax", (quad.n_ordinates, 1))])
+        layout = CoproductLayout.from_named_shapes([("xmin", (quad.n_ordinates, 1)), ("xmax", (quad.n_ordinates, 1))])
         return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 
     def scalar() -> ScalarTraceSpace:

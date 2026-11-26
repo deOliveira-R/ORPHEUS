@@ -105,7 +105,7 @@ def _random_inputs(rng, problem, ng, nx, ny):
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx, ny))
     Q = rng.uniform(0.0, 2.0, size=(problem.quad.n_ordinates, ng, nx, ny))
     bf = AngularBoundaryFlux.zeros(problem.angular_trace)
-    for face in bf.layout.faces:
+    for face in bf.layout.blocks:
         fv = bf.face_view(face)
         fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
     return sig_t, Q, bf
@@ -206,7 +206,7 @@ def test_scanmarch_residual_equals_oracle(nx, ny, lvl, ng, bc):
         interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
     )
     state.interior.values[...] = rng.uniform(-1.0, 1.0, size=state.interior.values.shape)
-    for face in state.boundary.layout.faces:
+    for face in state.boundary.layout.blocks:
         fv = state.boundary.face_view(face)
         fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
 
