@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **21688**
+Total tests collected: **21788**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 2253, 10.4%
+   L0, 2253, 10.3%
    L1, 2996, 13.8%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 16286, 75.1%
+   foundation, 16386, 75.2%
    unmarked, 68, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 21541
+   explicit, 21641
    class-name, 46
    func-name, 0
    case, 33
@@ -429,7 +429,7 @@ Module × level grid
    mesh/test_harmonic_frame_on_the_problem, 0, 0, 0, 0, 1, 0
    mesh/test_hollow_inner_law, 0, 0, 0, 0, 2, 0
    mesh/test_hub_and_frame_agree_on_the_moment_space, 0, 0, 0, 0, 38, 0
-   mesh/test_hub_owns_the_moment_space, 0, 0, 0, 0, 12, 0
+   mesh/test_hub_owns_the_moment_space, 0, 0, 0, 0, 13, 0
    mesh/test_mesh1d, 0, 0, 0, 0, 59, 0
    mesh/test_mesh1d_cell_integrals, 0, 0, 0, 0, 26, 0
    mesh/test_mesh1d_regions, 0, 0, 0, 0, 31, 0
@@ -491,7 +491,7 @@ Module × level grid
    numerics/test_axis_identity, 0, 0, 0, 0, 20, 0
    numerics/test_axis_marginal, 0, 0, 0, 0, 22, 0
    numerics/test_axis_marginal_lift, 0, 0, 0, 0, 315, 0
-   numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 12, 0
+   numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 11, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
    numerics/test_concept_order, 0, 0, 0, 0, 0, 8
    numerics/test_content_identity_axis, 0, 0, 0, 0, 68, 0
@@ -584,7 +584,7 @@ Module × level grid
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
    numerics/test_space_identity_is_structural, 0, 0, 0, 0, 15, 0
    numerics/test_space_membership, 9, 0, 0, 0, 0, 0
-   numerics/test_space_of_axes, 0, 0, 0, 0, 21, 0
+   numerics/test_space_of_axes, 0, 0, 0, 0, 20, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 8, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
    numerics/test_strategy_mints_green, 0, 0, 0, 0, 16, 0
@@ -593,6 +593,7 @@ Module × level grid
    numerics/test_symmetry_exactness, 0, 0, 0, 0, 30, 0
    numerics/test_tensor_product_metric_is_factored, 0, 0, 0, 0, 10, 0
    numerics/test_tensor_product_operator, 33, 0, 0, 0, 0, 0
+   numerics/test_theory_page_examples_run, 0, 0, 0, 0, 2, 0
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 16, 0
    numerics/test_true_ends_member_seam, 0, 0, 0, 0, 5, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 6, 0
@@ -848,38 +849,60 @@ Module × level grid
    transport/test_wall_condition, 0, 0, 0, 0, 5, 0
    transport/test_wall_condition_algebra, 0, 0, 0, 0, 7, 0
    transport/test_wave2_handoffs, 0, 0, 0, 0, 3, 0
+   values/test_canonical_reals_rank_zero, 0, 0, 0, 0, 12, 0
    values/test_content_identity, 0, 0, 0, 0, 43, 0
    values/test_content_identity_relocation, 0, 0, 0, 0, 14, 0
    values/test_digest_convention, 0, 0, 0, 0, 13, 0
    values/test_one_real_parser, 0, 0, 0, 0, 16, 0
+   w1/test_allow_list_is_the_pinned_set, 0, 0, 0, 0, 4, 0
    w1/test_axis_form_bytes, 0, 0, 0, 0, 2, 0
    w1/test_axis_form_derived, 0, 0, 0, 0, 6, 0
-   w1/test_axis_reader_mapping, 0, 0, 0, 0, 4, 0
+   w1/test_axis_reader_mapping, 0, 0, 0, 0, 3, 0
    w1/test_bare_path_takes_the_matrix_as_stored, 0, 0, 0, 0, 1, 0
+   w1/test_base_and_legacy_fields_refuse, 0, 0, 0, 0, 4, 0
    w1/test_content_identity_declaration, 0, 0, 0, 0, 18, 0
    w1/test_content_identity_factor, 0, 0, 0, 0, 18, 0
+   w1/test_content_identity_metric, 0, 0, 0, 0, 16, 0
    w1/test_declaration_normal_form, 0, 0, 0, 0, 21, 0
+   w1/test_declared_requires_a_variance, 0, 0, 0, 0, 2, 0
    w1/test_dense_form_stated_face, 0, 0, 0, 0, 2, 0
    w1/test_dense_inverse_admission, 0, 0, 0, 0, 25, 0
    w1/test_dense_inverse_bytes, 0, 0, 0, 0, 43, 0
    w1/test_dense_kernel_declared, 0, 0, 0, 0, 39, 0
+   w1/test_dual_of_a_head_is_today, 0, 0, 0, 0, 1, 0
    w1/test_factor_dense_admission_table, 0, 0, 0, 0, 1, 0
    w1/test_factor_energy_law, 0, 0, 0, 0, 1, 0
    w1/test_factor_induced_form, 0, 0, 0, 0, 5, 0
    w1/test_factor_klein, 0, 0, 0, 0, 3, 0
    w1/test_factor_singular_face, 0, 0, 0, 0, 1, 0
+   w1/test_flat_in_slot_order, 0, 0, 0, 0, 3, 0
+   w1/test_form_equality, 0, 0, 0, 0, 5, 0
    w1/test_form_kernel_signature, 0, 0, 0, 0, 3, 0
    w1/test_frame_measure_sign, 0, 0, 0, 0, 4, 0
    w1/test_half_range_one_owner, 0, 0, 0, 0, 26, 0
    w1/test_half_range_population, 0, 0, 0, 0, 8, 0
    w1/test_half_range_selectors, 0, 0, 0, 0, 7, 0
    w1/test_invertible_form, 0, 0, 0, 0, 2, 0
+   w1/test_leaf_branches_are_pinned, 0, 0, 0, 0, 6, 0
+   w1/test_mixed_kind_slots, 0, 0, 0, 0, 2, 0
+   w1/test_n04_review_repairs, 0, 0, 0, 0, 10, 0
+   w1/test_no_axes_arm_and_no_overlay, 0, 0, 0, 0, 3, 0
    w1/test_no_cutoff_in_metric, 0, 0, 0, 0, 5, 0
    w1/test_no_cutoff_symbols, 0, 0, 0, 0, 4, 0
+   w1/test_one_spelling_of_the_contraction, 0, 0, 0, 0, 2, 0
+   w1/test_one_tensor_type, 0, 0, 0, 0, 4, 0
+   w1/test_production_variance, 0, 0, 0, 0, 4, 0
+   w1/test_retraction_reads_the_factor, 0, 0, 0, 0, 1, 0
    w1/test_signature_guarantee, 0, 0, 0, 0, 24, 0
+   w1/test_signed_rule_is_a_legal_factor, 0, 0, 0, 0, 4, 0
+   w1/test_signed_rule_keff_values, 0, 0, 0, 0, 4, 0
    w1/test_signed_rule_reflective, 0, 0, 0, 0, 2, 0
    w1/test_snapshot_controls, 0, 0, 0, 0, 0, 4
    w1/test_snapshot_harness, 0, 0, 0, 0, 0, 1
+   w1/test_tensor_legality, 0, 0, 0, 0, 2, 0
+   w1/test_tensor_space_constructors, 0, 0, 0, 0, 4, 0
+   w1/test_tensor_space_klein, 0, 0, 0, 0, 4, 0
+   w1/test_test_space_is_basis_space, 0, 0, 0, 0, 3, 0
    w1/test_trace_half_range_coherence, 0, 0, 0, 0, 2, 0
    w1/test_variance_literal, 0, 0, 0, 0, 3, 0
 
