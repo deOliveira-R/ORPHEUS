@@ -338,6 +338,25 @@ def test_a_foreign_field_is_refused_by_name_under_minus_o() -> None:
         twin.label_holding(V.summand(V.labels[0]))
 
 
+def test_member_reads_coordinates_in_any_array() -> None:
+    """G05l, the reading of the argument (found at the unit's integration). ``member`` is the inverse of the chart: it reads real coordinates in the flat chart's order whatever array holds them, as every other space's
+    ``member`` does, so a row vector ``(1, n)``, a column ``(n, 1)``, a list and an integer array give the element the flat float vector gives, on each of the 33 composites; ``with_coordinates``, which rebuilds a given
+    element, takes the flat vector as it is and refuses the row vector. First red: ``759511174`` to ``e9a13c69d``, where ``member`` handed its argument to ``with_coordinates`` unread and the row vector was refused
+    (measured against the base tip, 28 of 28 probe rows equal after the repair). Mutation: drop the ``ravel`` in ``DirectSumSpace.member``. Exact on any host: integer-valued coordinates."""
+    seen = 0
+    for name, V in composites():
+        flat = np.arange(V.n_coordinates, dtype=float) + 1.0
+        expected = np.asarray(V.coordinates_of(V.member(flat)))
+        _require(np.array_equal(expected, flat), f"{name}: member is not the inverse of coordinates_of on a flat vector")
+        for kind, c in (("row", flat[None, :]), ("column", flat[:, None]), ("list", list(flat)), ("int", flat.astype(np.int64))):
+            got = np.asarray(V.coordinates_of(V.member(c)))
+            _require(got.dtype == expected.dtype and np.array_equal(got, expected), f"{name}: member of a {kind} of coordinates differs from member of the flat vector")
+        with pytest.raises(ValueError):
+            V.with_coordinates(V.zero(), flat[None, :])
+        seen += 1
+    _require(seen == 33, f"the member row ran on {seen} composites, expected 33")
+
+
 def test_coupled_births_take_the_hubs_labels() -> None:
     """G05g, the births. On the six carrying fixtures (the sphere and the cylinder at three group counts), the three coupled states the solver mints beyond ``_returned_state`` and ``_as_coupled``
     live on the hub's sum: ``_coupled_flux_state``, ``_coupled_source_state`` and ``_typed_balance`` each return a ``CoupledField`` with ``.space == problem.system.space`` (the labels are read from

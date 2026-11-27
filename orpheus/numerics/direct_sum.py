@@ -476,8 +476,11 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         return self.carrier.dual_zeros()
 
     def member(self, coordinates: NDArray) -> Any:
-        r"""The typed element with these flat coordinates, on the zero element's class: the inverse of :meth:`coordinates_of`."""
-        return self.with_coordinates(self.zero(), coordinates)
+        r"""The typed element with these flat coordinates, on the zero element's class: the inverse of :meth:`coordinates_of`.
+
+        The chart's inverse reads its argument as real coordinates in the flat chart's order, whatever array holds them (the same reading every other
+        space's ``member`` makes); :meth:`with_coordinates`, which rebuilds a given element, takes the flat vector as it is."""
+        return self.with_coordinates(self.zero(), np.asarray(coordinates, dtype=float).ravel())
 
     def with_coordinates(self, x: Any, coordinates: NDArray) -> Any:
         r"""The typed element ``x``, its class and everything it carries kept, rebuilt with these flat coordinates.
