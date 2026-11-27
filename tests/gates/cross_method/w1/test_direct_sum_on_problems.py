@@ -319,9 +319,9 @@ def test_a_bare_lift_on_a_carrying_hub_is_posed_on_its_own_summand_and_refused_b
 
 def test_a_foreign_field_is_refused_by_name_under_minus_o() -> None:
     """G05g, the lookup (ruling Y2 of the third post-verify pass). A field of another problem (the slab at 3 groups) lifted and posed on three hubs that do not hold its space (the slab, the box and the sphere at 2 groups)
-    is refused by ``SourcePosing`` with a ``ValueError`` that names the operator's ends, 3 of 3, as at the base tip; and ``DirectSumSpace.label_holding`` itself refuses, by name and with the same fragment, a space that no summand
-    has (zero matches) and a space that two summands have (two matches), under ``-O``. Mutation: read the labels whole (``labels=problem.system.space.labels``) at the lift: the refusal is a ``zip`` error on the
-    sphere hub, and this row reddens. Exact on any host: spaces and refusals."""
+    is refused at ``SNProblem.source_posing`` with a ``ValueError`` that names the operator's ends, 3 of 3; the refusal is the lookup's (``DirectSumSpace.label_holding``, at the lift), which comes before ``SourcePosing``'s own,
+    the one the base tip gave. The lookup itself refuses, by name and with the same fragment, a space that no summand has (zero matches) and a space that two summands have (two matches), under ``-O``. Mutation: read the labels
+    whole (``labels=problem.system.space.labels``) at the lift of ``source_posing`` in ``orpheus/sn/problem.py``: the refusal is a ``zip`` error on the sphere hub, and this row reddens. Exact on any host: spaces and refusals."""
     foreign = fx.sn_problem("slab", 3)[0].full_field_space.zero()
     seen = 0
     for kind in ("slab", "box", "sphere"):

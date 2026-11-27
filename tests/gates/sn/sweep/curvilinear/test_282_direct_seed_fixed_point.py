@@ -336,10 +336,8 @@ def test_4e_unweave_walk_source_has_no_carlson_reference():
 
 
 def _coupled_space(sn):
-    """The mesh's coupled ψ½ space (System A ⊕ System B, member-wise metric)."""
-    from orpheus.numerics.direct_sum import DirectSumSpace
-
-    return DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((sn.full_field_space, sn.radial_characteristic_field_space))))
+    """The mesh's coupled ψ½ space (System A ⊕ System B, member-wise metric): the hub's own sum, whose labels its elements are admitted by."""
+    return sn.system.space
 
 
 @pytest.mark.foundation

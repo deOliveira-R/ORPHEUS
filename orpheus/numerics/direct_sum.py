@@ -204,8 +204,8 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
 
     def label_holding(self, space: FunctionSpace) -> str:
         r"""The label of the one summand whose space equals ``space``: the label a field living on ``space`` carries when it is lifted onto this sum as a one-system
-        element. A lookup, as :meth:`summand` is: a ``ValueError`` by name when ``space`` is the space of no summand or of several, because the caller is posing a field on
-        a space this sum does not hold (pose q on the operator's ends)."""
+        element. A lookup, as :meth:`summand` is: a ``ValueError`` by name when ``space`` is the space of no summand (the caller is posing a field on a space this sum does
+        not hold) or of several (the space does not say which summand the field is), with the fragment "pose q on the operator's ends" in both."""
         labels = [label for label, s in self.summands if s == space]
         if len(labels) != 1:
             raise ValueError(
