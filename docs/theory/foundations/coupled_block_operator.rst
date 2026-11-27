@@ -719,28 +719,30 @@ applies unchanged: every section :math:`s` of :math:`r_i` is injective, so
 that is the restriction's adjoint. The pair is named by what each arrow
 does, restriction and extension by zero.
 
-**The class.** ``SystemRestrictionOperator(space, system=i)`` realizes the
-pair on a :class:`~orpheus.numerics.direct_sum.DirectSumSpace` (the code
-counts members from 0, so the code's ``system=0`` is :math:`r_1`):
+**The class.** ``SystemRestrictionOperator(space, label=l)`` realizes the
+pair on a :class:`~orpheus.numerics.direct_sum.DirectSumSpace`; the member
+is addressed by its summand label, never by its position (the label of the
+first summand gives :math:`r_1`):
 
 - **Born bound, onto a one-member coupling.** Its domain is the whole
   coupled space; its codomain is the one-member coupled space
-  ``DirectSumSpace.of_pairs([V_i])`` built at construction, not the
+  ``DirectSumSpace.of_pairs(((l, V_i),))`` built at construction, not the
   member space :math:`V_i` itself, so :math:`r_i x` is a one-member
   :class:`~orpheus.numerics.coupled_system.CoupledField` and
   :math:`\iota_i` consumes one. `[M]` on the fixture, for both members, the
   codomain's single member is the parent's member-space object (an
   ``is`` comparison) while the codomain compares unequal to that member
-  space, its name being ``coupled(<member name>)``. The codomain's zero
+  space: it is the one-summand sum labelled :math:`l`. The codomain's zero
   factories are derived from the parent's.
 - **Refusals.** ``apply`` refuses an argument that is not a coupled field
-  (``TypeError``) and a coupled field of the wrong arity (``ValueError``);
-  a member index outside :math:`0, \dots, N-1` is refused at construction
-  (``ValueError``, "out of range").
+  (``TypeError``) and a coupled field of the wrong arity or carrying other
+  labels than the sum's (``ValueError``: an element is admitted by label);
+  a label that names no summand is refused at construction by the sum's own
+  lookup (``KeyError``, "is not a summand label").
 - **The extension is the cotangent map.** ``apply_transpose`` mints the
   zeros it extends with through the space's cotangent seam,
-  :meth:`DirectSumSpace.dual_zeros
-  <orpheus.numerics.direct_sum.DirectSumSpace.dual_zeros>`, so they carry
+  :meth:`DirectSumSpace.dual_zero
+  <orpheus.numerics.direct_sum.DirectSumSpace.dual_zero>`, so they carry
   the source role, the dual of the flux role: a transpose consumes the
   codomain's cotangent and emits the domain's. `[M]` on the fixture,
   extending System A leaves System B as a
@@ -803,7 +805,7 @@ pin, on toy members: member selection into the one-member codomain; the
 split law :math:`r \circ \iota = \mathrm{id}`; extension with the dual-role
 zeros; the Euclidean pairing :math:`\langle r x, y\rangle = \langle x,
 \iota y\rangle`; the idempotence of :math:`\iota \circ r`; the two refusals
-(an unwired dual seam, a member index out of range); and
+(an unwired dual seam, a label that names no summand); and
 ``is_adjointable``. Every construction site among them restricts onto
 the first member, or refuses a third. The rest was measured and not gated
 until 2026-09-22; since then
