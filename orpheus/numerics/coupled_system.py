@@ -313,6 +313,13 @@ class CoupledField:  # concept: member | role: weld | kind: element.member | wel
         r"""The summand elements in label order: the carrier's access that a direct sum reads (not the operator's ``blocks``)."""
         return self.systems
 
+    def system(self, label: str) -> SystemField:
+        r"""The member labelled ``label``; a ``KeyError`` listing the labels otherwise, as :meth:`DirectSumSpace.summand` refuses."""
+        try:
+            return self.systems[self.labels.index(label)]
+        except ValueError:
+            raise KeyError(f"{label!r} is not a member label; the labels are {list(self.labels)}") from None
+
     def with_blocks(self, blocks: "Sequence[SystemField]") -> "CoupledField":
         r"""The same concrete class rebuilt with ``blocks`` as its members, the labels kept."""
         return replace(self, systems=tuple(blocks))
@@ -355,7 +362,7 @@ class CoupledField:  # concept: member | role: weld | kind: element.member | wel
     # ── Algebra (member-wise delegation; roles live on the members) ────
 
     def _check_partner(self, other: object) -> "CoupledField":
-        r"""Reject a partner that is not an arity-matched :class:`CoupledField`.
+        r"""Reject a partner that is not a :class:`CoupledField` of the same arity and the same labels.
 
         Container level only (the ``Composite._check_partner`` discipline):
         member-level role/type/mesh law is the members' single source of
@@ -371,6 +378,11 @@ class CoupledField:  # concept: member | role: weld | kind: element.member | wel
             raise ValueError(
                 f"CoupledField arithmetic requires matching system arity; got "
                 f"{self.n_systems} vs {other.n_systems} systems."
+            )
+        if other.labels != self.labels:
+            raise ValueError(
+                f"CoupledField arithmetic requires matching labels; got {list(self.labels)} vs {list(other.labels)}: "
+                f"the blocks are paired by label, never by position."
             )
         return other
 
@@ -1182,13 +1194,13 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
         if space.has_zero:
 
             def _mint_primal() -> "CoupledField":
-                return CoupledField(systems=(space.zero().systems[index],), labels=(label,))
+                return CoupledField(systems=(space.zero().system(label),), labels=(label,))
 
             derived_zeros = _mint_primal
         if space.has_dual_zero:
 
             def _mint_dual() -> "CoupledField":
-                return CoupledField(systems=(space.dual_zero().systems[index],), labels=(label,))
+                return CoupledField(systems=(space.dual_zero().system(label),), labels=(label,))
 
             derived_dual = _mint_dual
         self._codomain = DirectSumSpace.of_pairs(
@@ -1224,7 +1236,7 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
                 f"{len(x.systems)} systems but the domain couples {n}."
             )
         self._space.admit_labels(x.labels, f"SystemRestrictionOperator.apply (the system {self._label!r})")
-        return CoupledField(systems=(x.systems[self._index],), labels=(self._label,))
+        return CoupledField(systems=(x.system(self._label),), labels=(self._label,))
 
     def apply_transpose(self, y: "CoupledField", /) -> "CoupledField":
         r"""``\iota_i y`` — the extension-by-zero: member ``i`` carries the
@@ -1254,9 +1266,10 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
                 f"couples {len(y.systems)} systems but the codomain is the "
                 f"1-member coupling."
             )
+        self._codomain.admit_labels(y.labels, f"SystemRestrictionOperator.apply_transpose (the system {self._label!r})")
         minted = self._space.dual_zero()
         systems = list(minted.systems)
-        systems[self._index] = y.systems[0]
+        systems[self._index] = y.system(self._label)
         return CoupledField(systems=tuple(systems), labels=self._space.labels)
 
     @property

@@ -363,6 +363,19 @@ class TestCoupledFieldIntrinsic:
         with pytest.raises(ValueError, match="matching system arity"):
             _ = x + one
 
+    def test_arithmetic_admits_by_label_never_by_position(self) -> None:
+        """Z1: two coupled fields of the same arity and DIFFERENT labels do not add or subtract (``ValueError`` naming both label tuples), and the accessor
+        ``system(label)`` reads a member by its label (``KeyError`` listing the labels). Reds when ``_check_partner`` compares the arity only."""
+        x = _x(3)
+        reversed_labels = CoupledField(systems=x.systems, labels=tuple(reversed(x.labels)))
+        for op in (lambda a, b: a + b, lambda a, b: a - b):
+            assert op(x, _x(4)).labels == x.labels  # the positive control: the same labels pair
+            with pytest.raises(ValueError, match=r"matching labels; got \['s0', 's1'\] vs \['s1', 's0'\]"):
+                op(x, reversed_labels)
+        assert x.system("s1") is x.systems[1]
+        with pytest.raises(KeyError, match=r"not a member label; the labels are \['s0', 's1'\]"):
+            x.system("s2")
+
     def test_member_wise_algebra_delegates_to_the_members(self) -> None:
         x, y = _x(4), _x(5)
         s = x + y
@@ -1400,6 +1413,16 @@ class TestSystemRestriction:
         with pytest.raises(RuntimeError, match="DUAL zero-element factory"):
             r.apply_transpose(y)
 
+    def test_apply_transpose_admits_by_the_codomains_label(self) -> None:
+        """Z1: the extension by zero admits its argument through the codomain's ``admit_labels``, as ``apply`` does through the domain's: a one-member field labelled
+        otherwise than the restricted summand is a ``ValueError``. Reds when ``apply_transpose`` checks the arity only."""
+        _, r = _restriction_pair()
+        y = CoupledField(systems=(_GammaField(values=np.ones(3)),), labels=r.codomain.labels)
+        assert r.apply_transpose(y).labels == ("s0", "s1")  # the positive control: the codomain's label is admitted
+        wrong = CoupledField(systems=y.systems, labels=("nonsense",))
+        with pytest.raises(ValueError, match="admitted by label, never by position"):
+            r.apply_transpose(wrong)
+
     def test_out_of_range_system_refuses(self) -> None:
         space = _restriction_space()
         with pytest.raises(KeyError, match="not a summand label"):
@@ -1708,7 +1731,7 @@ class TestSystemRestrictionLaws:
                     replace(v.systems[0], values=np.where(
                         weights != 0.0, v.systems[0].values, 0.0,
                     )),
-                ), labels=labels_for(1),)
+                ), labels=(f"s{system}",),)
             expected = r.apply_transpose(projected).to_flat()
             got = adjoint.apply(v).to_flat()
             np.testing.assert_allclose(

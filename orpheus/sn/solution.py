@@ -249,7 +249,7 @@ class SolutionBase(Generic[O]):  # concept: solution | role: head | kind: record
         the eigen/adjoint tail stripped them to the cell average while the
         fixed-source arms kept them — two conventions for one member).
         """
-        return cast("TimedFullField", self.state.systems[0])
+        return cast("TimedFullField", self.state.system(self.problem.system.space.labels[0]))
 
     @property
     def radial_characteristic(self) -> "RadialCharacteristicField | None":
@@ -258,7 +258,7 @@ class SolutionBase(Generic[O]):  # concept: solution | role: head | kind: record
         is the state's ARITY: no wiring guard is needed to keep it honest."""
         if self.state.n_systems == 1:
             return None
-        return cast("RadialCharacteristicField", self.state.systems[1])
+        return cast("RadialCharacteristicField", self.state.system(self.problem.system.space.labels[1]))
 
     @property
     def boundary_flux(self) -> "AngularBoundaryFlux":

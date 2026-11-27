@@ -240,11 +240,11 @@ def _system_a_member(state: "CoupledField | FullField") -> "FullField":
     through this one seam instead of branching at each call site.
     """
     if isinstance(state, CoupledField):
-        member = state.systems[0]
+        member = state.system(SYSTEM_A_LABEL)
         if not isinstance(member, FullField):
             raise TypeError(
                 f"_system_a_member: the ψ½ coupled pair carries System A "
-                f"(a FullField composite) at position 0; got "
+                f"(a FullField composite) under the label {SYSTEM_A_LABEL!r}; got "
                 f"{type(member).__name__}."
             )
         return member
@@ -277,11 +277,11 @@ def _system_b_member(
                 f"systems (System A, and System B where the mesh carries a "
                 f"seed level); got {state.n_systems}."
             )
-        member = state.systems[1]
+        member = state.system(SYSTEM_B_LABEL)
         if not isinstance(member, RadialCharacteristicField):
             raise TypeError(
                 f"_system_b_member: the ψ½ coupled pair carries System B "
-                f"(a RadialCharacteristicField) at position 1; got "
+                f"(a RadialCharacteristicField) under the label {SYSTEM_B_LABEL!r}; got "
                 f"{type(member).__name__}."
             )
         return member
