@@ -1179,14 +1179,14 @@ that produced a typed iterate. It is the **single source**; the two
 diagnostics are *derived views* of it, so they cannot drift from it.
 
 The norm is the **space-induced norm of the principal bulk leaf** — not
-the flat norm of the whole composite. :func:`!_principal_bulk_leaf`
-(in :mod:`orpheus.numerics.iteration`) walks structure rather than
-types: it descends ``interior`` for an
-:class:`~orpheus.transport.full_field.FullField` composite and
-``systems[0]`` for a
+the flat norm of the whole composite. Each iterate type exposes
+``principal_bulk_leaf``, and :mod:`orpheus.numerics.iteration` reads that one
+attribute and knows no carrier's anatomy: a
+:class:`~orpheus.transport.full_field.FullField` composite answers its ``interior``, and a
 :class:`~orpheus.numerics.coupled_system.CoupledField` block iterate
-(the convention: the coupling's first member is the principal field),
-and duck-types only ``l2``. A bare-ndarray (L0) iterate yields no leaf
+delegates to its first member, ``systems[0]``
+(the convention: the coupling's first member is the principal field);
+the diagnostic duck-types only ``l2``. A bare-ndarray (L0) iterate yields no leaf
 and records nothing, as before.
 
 .. important::

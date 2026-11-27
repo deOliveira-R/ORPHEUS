@@ -65,11 +65,13 @@ assembly       each block's emission scattered at its ``(row_i, col_j)``
 =============  ===========================================================
 
 **The offsets ARE the block structure.** The assembly needs a local→global
-DOF map, and the coupled space (a :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
-labelled by the coupled builder) provides it for free
-(:meth:`~orpheus.numerics.direct_sum.DirectSumSpace.slice_of`): member ``i``'s flat DOFs occupy the
+DOF map, and the block law's offsets are those that
+:func:`scipy.sparse.block_array` derives from the blocks' shapes: member ``i``'s flat DOFs occupy the
 contiguous slice at the cumulative offset of the members before it — the
-same layout :meth:`CoupledField.to_flat` packs. This is the **scoped
+same layout :meth:`CoupledField.to_flat` packs. They coincide with the coupled space's
+:meth:`~orpheus.numerics.direct_sum.DirectSumSpace.slice_of` (the coupled space is a
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace` labelled by the coupled builder), because both are cumulative sums of
+the same summand sizes in label order; the assembly itself does not read ``slice_of``. This is the **scoped
 realization of the deferred ``LocalToGlobalMap``** (the 2-P0 attacker ruling
 at ``orpheus/numerics/assembled_operator.py`` deferred a reified map "until a
 structured consumer arrives" — the block grid is that structured consumer,
@@ -785,7 +787,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
         r"""``True`` iff the dense direct route exists: a square grid whose
         matrix CAN be realized — a full structural assembly, or the typed
         basis probe through the domain's zero exemplar
-        (the sum's ``carrier.zeros``). Squareness is arity AND flat
+        (the sum's ``has_zero`` asks whether it mints one). Squareness is arity AND flat
         dimension (a two-sided inverse needs both). Size is deliberately
         NOT consulted — the gate
         (:class:`~orpheus.numerics.operator.MatrixTooLarge`) is a loud
@@ -982,10 +984,10 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
         block matvec refuses flat columns, the base ``as_matrix`` "honest
         scope" note), so the probe runs over TYPED basis elements minted
         from the domain's zero exemplar: column ``j`` is
-        ``apply(from_flat(δ_j, domain.carrier.zeros()))`` raveled — the same
+        ``apply(from_flat(δ_j, domain.zero()))`` raveled — the same
         C-order column convention as the base. Requires the domain space's
-        zeros factory (``carrier.zeros`` of the sum, wired by the instance
-        builder); an explicit ``basis_shape`` must match the coupled flat
+        zero element (``zero()`` of the sum, which refuses when the instance
+        builder wired no zero factory); an explicit ``basis_shape`` must match the coupled flat
         dimension, and ``max_dimension`` gates as usual.
         """
         n = self._domain.n_coordinates
@@ -1022,7 +1024,8 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
         r"""Scatter each block's emission at its ``(row_i, col_j)`` offset.
 
         The block grid → ONE flat sparse matrix over the coupled flat layout
-        (:meth:`~orpheus.numerics.direct_sum.DirectSumSpace.slice_of` — the scoped ``LocalToGlobalMap``):
+        (the scoped ``LocalToGlobalMap``, whose offsets coincide with the sum's
+        :meth:`~orpheus.numerics.direct_sum.DirectSumSpace.slice_of`):
         block ``(i, j)`` lands at row offset ``Σ_{k<i} n_k``, column offset
         ``Σ_{k<j} n_k``, realized by :func:`scipy.sparse.block_array` (the
         honest carrier — the same 2-P0 ruling that made
@@ -1155,7 +1158,7 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
     The transpose is the **extension-by-zero**
     :math:`\iota_i = r_i^{\mathsf T}`: the input written into member
     ``i`` of a fresh zero of the FULL coupled space, minted through the
-    space's own ``carrier.dual_zeros`` seam (the builder-wired
+    space's own ``dual_zero()`` door (the builder-wired
     COTANGENT-side typed-carrier materialization point — no per-operator
     zero closures; the S4-amendment's un-weld). It follows that the
     operator is usable in a daggered composition only on a space whose
@@ -1164,8 +1167,8 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
 
     Born fully bound (the S4-amendment's base demand): ``domain`` is the
     full coupled sum, ``codomain`` the derived 1-member
-    coupling ("a 1-member coupling is the legitimate degenerate" —
-    :meth:`~orpheus.numerics.direct_sum.DirectSumSpace.of_pairs`), whose zeros factory is DERIVED
+    coupling ("a 1-tuple is the legitimate degenerate" —
+    :class:`CoupledField`'s ``systems``), whose zeros factory is DERIVED
     from the parent's when wired.
 
     Why it exists — the first consumer
@@ -1245,7 +1248,7 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
         Dual, because a transpose is the cotangent map (#276 A4 duality
         typing — it consumes the codomain-cotangent and emits the
         domain-cotangent), so the members it extends WITH are
-        cotangent-side zeros: ``carrier.dual_zeros``, the seam's
+        cotangent-side zeros: ``dual_zero()``, the door's
         cotangent twin. [M] 2026-08-22, the class question is
         load-bearing: extending with the PRIMAL mint put a flux-classed
         ray zero into the daggered fission chain, and the cross-class

@@ -9725,7 +9725,7 @@ Why string-keyed, not FaceLabel-keyed
 Issue #220 allowed either a ``dict[str, ...]`` keyed by face name or
 a ``dict[FaceLabel, ...]`` keyed by the structural label directly.
 C4 chose **string-keyed**, isomorphic to
-:attr:`CoproductLayout.faces <orpheus.numerics.coproduct_layout.CoproductLayout>`,
+:attr:`CoproductLayout.blocks <orpheus.numerics.coproduct_layout.CoproductLayout>`,
 for one reason: **every consumer iterates ``trace.layout.blocks``
 (strings)**. The within-group operator
 :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` (it reads

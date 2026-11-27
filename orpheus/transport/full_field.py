@@ -129,7 +129,7 @@ References
 * Grand Report v3 §5.5 (Field hierarchy), §5.3 (``DirectSumSpace`` /
   :class:`~orpheus.numerics.direct_sum.DirectSumSpace`).
 * ``coding-elegance`` Pattern 2 (the algebra lives ONCE in the base via the
-  recombine + block-map hooks) + Pattern 5 (``Composite`` is the right primitive;
+  ``with_blocks`` + block-map hooks) + Pattern 5 (``Composite`` is the right primitive;
   ``FullField`` narrows its loci, ``TimedFullField`` composes it with history).
 """
 
@@ -328,7 +328,7 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
         """
         return self.interior
 
-    # ── The typed element's two accesses + block-map hooks (Pattern 2) ──
+    # ── The typed element's three accesses + block-map hooks (Pattern 2) ──
 
     @property
     def labels(self) -> tuple[str, str]:

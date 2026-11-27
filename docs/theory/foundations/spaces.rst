@@ -635,12 +635,9 @@ family re-states equality. The key is a tagged tuple per kind of space:
    * - :class:`~orpheus.numerics.space.TensorSpace`
      - ``("tensor", factors)``: the ordered factors, each with its axis, variance and subquotient.
    * - :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
-     - ``("full_field", interior key, trace key)``.
-   * - :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
-     - ``("coupled", member keys)``.
+     - ``("dsum", ((label, summand key), …))``: the ordered labelled summands; the labels and their order are identity.
 
-The members of a composite are required fields: a full-field space without
-its blocks, a coupled space without its systems and a tensor product
+The members of a composite are required fields: a direct sum with no summand (refused, ``ValueError``) and a tensor product
 without its factors cannot be constructed.
 
 **The collisions the key removes.** Issue #631 measured four pairs of
@@ -3621,7 +3618,7 @@ coordinate dimension, the length of the chart. It is not
 ``rank`` now reads ``n_coordinates``. A composite space
 (:class:`~orpheus.numerics.direct_sum.DirectSumSpace`) has a 1-D shape,
 the sum of its summands' ``n_coordinates``, so its shape is already its
-flat chart and its members are flat vectors; the slicing of the flat chart,
+flat chart, its flat coordinates are one vector, and ``member(c)`` returns the typed element; the slicing of the flat chart,
 the direct-sum action (:meth:`~orpheus.numerics.direct_sum.DirectSumSpace.pack` and
 :meth:`~orpheus.numerics.direct_sum.DirectSumSpace.unpack`, through the one
 :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`) and the
@@ -7597,8 +7594,8 @@ two sums over the same labelled summands in two orders (the offsets differ), and
 of the identity.
 
 **The typed chart.** An element of a sum has two charts, the flat coordinates and the typed carrier. The carrier classes of the layer above
-(``FullField``, ``TimedFullField``, ``RadialCharacteristicField``, ``CoupledField``) implement two accesses, ``blocks`` (the summand elements in
-label order) and ``with_blocks`` (the same concrete class rebuilt, labels kept), and the sum reads and rebuilds its typed element through those two and
+(``FullField``, ``TimedFullField``, ``RadialCharacteristicField``, ``CoupledField``) implement three accesses, ``blocks`` (the summand elements in
+label order), ``labels`` (the summand labels the element is admitted by) and ``with_blocks`` (the same concrete class rebuilt, labels kept), and the sum reads and rebuilds its typed element through those three and
 nothing else: a block whose summand is a sum is handed to that summand's verb; any other block is a ``Member`` whose values the summand's verb acts on,
 rebuilt in one place. ``with_blocks`` on a ``TimedFullField`` keeps its history depth and returns an empty history (a metric application is algebra,
 not a state step). The two charts agree byte for byte. The labels are a class constant of each carrier class (``bulk`` and ``trace``; ``interior`` and
@@ -7609,15 +7606,16 @@ by ``dual``), wait for members typed by their space (issue #707). The carrier of
 refusal of a sum that mints no zero is its door: ``has_zero`` and ``has_dual_zero`` ask, ``zero()`` and ``dual_zero()`` mint or refuse, and no consumer reads the
 carrier's fields.
 
-**Admission by label.** A typed element is admitted by its labels, never by the position of its blocks: a verb of the sum, the coupled operator's block matvec and the
-restriction onto a summand each compare the element's ``labels`` with the sum's before reading a block, so a coupled field labelled ``(B, A)`` over the blocks
+**Admission by label.** A typed element is admitted by its labels, never by the position of its blocks: a verb of the sum, the coupled operator's block matvec, the
+restriction onto a summand and its extension by zero each compare the element's ``labels`` with the sum's before reading a block, and the arithmetic of two coupled fields
+compares the two operands' labels (a ``ValueError`` naming both tuples), so a coupled field labelled ``(B, A)`` over the blocks
 ``(a, b)`` is refused where a positional read would answer on the wrong metric. The coupled states the solver mints take their labels from the sum the hub
 built (``problem.system.space.labels``) and never re-spell them.
 
 **The verbs.** ``apply_metric`` and ``apply_inverse_metric`` act summand by summand through each summand's own verb; ``inner_product`` and ``norm`` take the
 typed carrier only; ``rank`` and ``negative`` are sums, ``kernel_basis`` is block diagonal, ``metric_diagonal`` the concatenation (``None`` if any
 summand is not diagonal). Three answers changed with the one sum, and none is a value production computes: ``unit`` is the concatenation of the summands'
-units (the retired classes answered all ones, which differs from it on a modal bulk), ``integral`` is the integral of that function (it raised on a full
+units (the retired classes answered all ones, which differs from it on a summand whose unit is not ones: `[M]` 2026-11-27, on a frame-dressed angular head ``basis_space(angular_frame(Quadrature.level_symmetric(sn_order=4), 1))`` of shape ``(2, 3)`` beside a nodal summand, the sum's ``unit`` equals the concatenation and is not all ones, while on a sum of two nodal summands it is all ones), ``integral`` is the integral of that function (it raised on a full
 field), and ``has_coordinate_cone`` is the three-valued conjunction, False before None. The flip by label, ``dual(on=)`` and ``riesz(on=)``, applies to
 the summands that hold the labels; it refuses whole a sum with a legacy leaf summand, which holds no factor labels. A partial flip and ``riesz()`` return a sum with
 no carrier, as ``with_summand`` does: the swapped pair of the whole dual does not mint the elements of a half-flipped space.

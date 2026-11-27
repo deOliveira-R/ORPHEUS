@@ -289,7 +289,7 @@ class CoproductLayout(Generic[K]):  # concept: layout | role: arm | kind: set
     ) -> "CoproductLayout[K]":
         r"""Build a :class:`CoproductLayout` from an ordered list of ``(key, shape)`` pairs.
 
-        The constructor takes the same pairs as ``named_shapes=``; this door stays because its 56 callers read it as a named construction of a layout
+        The constructor takes the same pairs as ``named_shapes=``; this door stays because its callers read it as a named construction of a layout
         from an ordered list, and a second spelling of the constructor's one argument carries no second behaviour.
 
         Iteration order of ``named_shapes`` determines the flat-buffer

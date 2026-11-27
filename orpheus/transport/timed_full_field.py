@@ -24,8 +24,8 @@ only the time-aware part:
 * The ``history_depth >= 0`` validation (extends the base's
   bulk/boundary/mesh checks).
 * The :meth:`with_blocks` override that carries ``history_depth`` and an
-  EMPTY history into algebra results, plus the ``zeros`` / ``from_flat``
-  classmethod specialisations that thread ``history_depth``.
+  EMPTY history into algebra results, plus the ``zeros``
+  classmethod specialisation that threads ``history_depth`` (``from_flat`` is inherited and routes through ``with_blocks``).
 
 Only the iteration / time-stepping drivers see the comonad (the
 history); the operator algebra reads a timeless
@@ -90,10 +90,11 @@ overridden :meth:`with_blocks`, so the algebra is written once on
 verb that rotates the history shift-register; :meth:`at_lag` reads
 historical states for time-derivative stencils.
 
-Cross-class arithmetic is rejected by an isinstance-and-bulk-type-
-identity check in :meth:`~orpheus.transport.full_field.FullField._check_partner`:
-an SN ``TimedFullField`` cannot add to a CP ``TimedFullField`` even
-though both are ``TimedFullField`` instances, because their bulk types
+Cross-class arithmetic is rejected at the leaves: the container check,
+:meth:`~orpheus.transport.full_field.Composite._check_partner`, refuses only a
+partner that is not a ``Composite``, and the leaf dunders refuse the bulk-type
+mismatch, so an SN ``TimedFullField`` cannot add to a CP ``TimedFullField``
+even though both are ``TimedFullField`` instances, because their bulk types
 differ (``AngularFlux`` vs ``ScalarFlux``).
 
 Grep signal
@@ -181,8 +182,8 @@ class TimedFullField(FullField):  # concept: member | role: arm | kind: element.
     :class:`~orpheus.transport.full_field.FullField` base. This class
     overrides :meth:`with_blocks` so algebra results are
     ``TimedFullField`` with empty history + preserved ``history_depth``
-    (#217), and specialises :meth:`zeros` / :meth:`from_flat` to thread
-    ``history_depth``.
+    (#217), and specialises :meth:`zeros` to thread
+    ``history_depth`` (:meth:`from_flat` is inherited and routes through :meth:`with_blocks`).
 
     History
     -------

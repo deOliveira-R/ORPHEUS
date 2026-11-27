@@ -112,8 +112,9 @@ On a seedless mesh the value degrades structurally: ``M`` is the plain
 ``(L+C)`` (or ``(L+C) − B_lower`` under the boundary-Gauss-Seidel schedule)
 and ``N`` the ``(S, N2N, B_a)`` pieces (§14.1; ``B_upper`` in place of
 ``B_a`` under Gauss-Seidel) — the seedless driver paths (2-D windowing)
-consume those bare pieces ZERO-TOUCH (the B.2d DP-seedless ruling: the
-coupled carrier appears exactly where System B exists).
+consume those bare pieces ZERO-TOUCH (the B.2d DP-seedless ruling; on a
+seedless mesh the coupled carrier is the one-summand sum, and a bare
+``FullField`` is still read).
 
 .. warning::
 
@@ -233,9 +234,8 @@ def _system_a_member(state: "CoupledField | FullField") -> "FullField":
     r"""Read System A's member off a driver state — coupled or bare.
 
     The ONE presence-dispatch reader of the DP-seedless ruling: the solve
-    sites hold a :class:`~orpheus.numerics.coupled_system.CoupledField` on
-    a carrying mesh and the bare 2-block composite elsewhere (the coupled
-    carrier appears exactly where System B exists), so every System-A read
+    sites hold a :class:`~orpheus.numerics.coupled_system.CoupledField` (on a
+    seedless mesh the one-summand sum) or, still, the bare 2-block composite, so every System-A read
     (the φ reduction, the boundary trace, the finalize threading) funnels
     through this one seam instead of branching at each call site.
     """
@@ -391,7 +391,7 @@ class WithinGroupSystem:  # concept: pencil | role: twin | kind: morphism
         ``A`` — the typed loss grid (2×2 carrying / 1×1 seedless; the
         B.2c presence-structural P2 shape). Since step 5 it is
         DIRECT-invertible via the materialize/LU route
-        (the coupled sum's ``carrier.zeros`` is wired), the EXTRACT the swap-law
+        (the coupled sum's ``zero()`` is wired), the EXTRACT the swap-law
         gates ride — production solves stay the splitting iteration.
     space : DirectSumSpace
         The coupled carrier space ``loss`` is typed against (P1
@@ -434,7 +434,7 @@ def _zero_full_field(problem: "SNProblem") -> "FullField":
     Flux-role by construction (``AngularFlux`` bulk ⊕ ``AngularBoundaryFlux``
     trace — the DOMAIN of the within-group operators), spatial-moment-aware
     (a multi-moment closure's φ̂ tail rides the carrier's
-    ``angular_trial_space`` mint, CS4b S5).  Consumed by the coupled sum's ``carrier.zeros`` — the
+    ``angular_trial_space`` mint, CS4b S5).  Consumed by the coupled sum's ``zero()`` — the
     typed-carrier materialization seam (the loss grid's ``as_matrix``
     basis probe and ``MatrixInverseOperator``'s typed return template),
     which is what flips ``loss.is_invertible`` True (the step-5 EXTRACT

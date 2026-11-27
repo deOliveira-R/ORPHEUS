@@ -439,9 +439,11 @@ wraps the result in a
 :class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator` —
 :ref:`operator-algebra-assembly-axis`), and ``solve``
 (the structure-keyed direct solve, below). The offsets ARE the block
-structure — :attr:`DirectSumSpace.slice_of
-<orpheus.numerics.direct_sum.DirectSumSpace.slice_of>` is the
-scoped local→global DOF map the block law needs, the same layout
+structure — the block law's offsets are those
+:func:`scipy.sparse.block_array` derives from the blocks' shapes, which coincide with
+:attr:`DirectSumSpace.slice_of
+<orpheus.numerics.direct_sum.DirectSumSpace.slice_of>` because both are cumulative sums of
+the same summand sizes in label order, the same layout
 :meth:`CoupledField.to_flat` packs. Because :class:`CoupledField` itself
 satisfies the ravellable ``to_flat``/``from_flat`` protocol, every
 ``restart = n_dof = template.to_flat().size`` sizing site tracks the
@@ -539,7 +541,7 @@ is the gather over the contiguous index block :math:`S_i` of member
 :eq:`bc-trace-restriction-pair` with :math:`S = S_i`. `[M]` on the fixture,
 the production restriction and a
 :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` built on
-``slice_of[i]`` agree under ``np.array_equal`` in 200 of 200 draws, for
+``space.slice_of(label)`` agree under ``np.array_equal`` in 200 of 200 draws, for
 both members and in both directions, while the gather over the block
 shifted by one row disagrees (``sysres_probe4.py``). What the coupled class
 adds over the flat gather is typing: its ends are coupled spaces and its
@@ -649,7 +651,13 @@ orthogonal, :math:`\langle P_i a, (I - P_i) b\rangle_G = 0`, and
 of the coupled fields. The first four rows were read on a source-role field
 and again on a flux-role field, with the same result; each control is a
 deliberately wrong reading that must fail
-(``sysres_probe.py``, ``sysres_probe6.py``, ``sysres_probe_controls.py``):
+(``sysres_probe.py``, ``sysres_probe6.py``, ``sysres_probe_controls.py``,
+2026-09-22). `[M]` 2026-11-27, after the direct-sum unit changed the
+metric routing, the whole table was re-measured on the same fixture, seeds and
+controls by a port of those probes to the labelled API
+(``scratch/ontology/w1/open/N05/post4/probe_laws.py``, untracked): every row reads as
+below, except that the bitwise count of ``r.H`` for System B moved from 7 to 6 of
+200, which the last row states.
 
 .. list-table:: The laws of the system restriction, measured on the fixture
    :header-rows: 1
@@ -680,7 +688,7 @@ deliberately wrong reading that must fail
        :math:`7.3\times10^{-3}` for System A and :math:`7.3\times10^{-2}`
        for System B); ``r.H`` against ``r.apply_transpose`` differs by at
        most :math:`2.6\times10^{-16}` relative, and is bitwise equal in 0
-       of 200 draws for System A and 7 of 200 for System B: the round-off
+       of 200 draws for System A and 6 of 200 for System B (7 of 200 before the direct-sum unit): the round-off
        of :math:`G_i^{+} G_i v`, not a different map
 
 **Why extension by zero, and why one class.** The first law makes
@@ -782,11 +790,12 @@ first summand gives :math:`r_1`):
    and `[M]` the hub's posed production's ``.H`` returns an all-source-role
    coupled field on either role of input.
 
-**Where it is used.** `[M]` 2026-09-22, an AST census of call sites spelled
-``SystemRestrictionOperator(...)`` finds 1 in ``orpheus/`` (352 files
-parsed) and 3 in ``tests/`` (612 files), all 3 in
-``tests/gates/numerics/test_coupled_operator.py``; the same census finds 6
-``CoupledOperator(...)`` call sites in ``orpheus/``. The production site is
+**Where it is used.** `[M]` 2026-11-27, an AST census (``ast.Call`` by name, over the ``.py`` files ``git ls-files`` lists) of call sites spelled
+``SystemRestrictionOperator(...)`` finds 1 in ``orpheus/`` (410 files
+parsed) and 13 in ``tests/`` (1049 files), 10 in
+``tests/gates/numerics/test_coupled_operator.py`` and 3 in
+``tests/gates/cross_method/w1/test_direct_sum_on_problems.py``; the same census finds 6
+``CoupledOperator(...)`` call sites in ``orpheus/`` (the 2026-09-22 census found 1, 3 and 6). The production site is
 :func:`~orpheus.sn.coupled_system.build_within_group_system`, which poses
 the fission operator on a carrying mesh as the composition
 :eq:`sn-posed-production-carrying`, :math:`[\,[F], [E_F]\,] \circ r_1`. The

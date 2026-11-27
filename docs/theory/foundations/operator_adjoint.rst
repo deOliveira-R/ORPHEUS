@@ -358,15 +358,11 @@ the three metric primitives to dispatch **per block**:
 .. code-block:: python
 
    def apply_metric(self, x):            # G ⊙ x
-       return self._rebuild(
-           x,
-           self.bulk_space.apply_metric(x.bulk.values),
-           self.summand("trace").apply_metric(x.boundary.values),
-       )
+       return self._on_blocks(x, "apply_metric", lambda s, v: s.apply_metric(v))
 
-Each override splits the composite field into its ``.bulk`` /
-``.boundary`` blocks, routes each to its leaf space's metric method, and
-rebuilds the composite. This is a **pure Pattern-2 composition**: the
+Each override splits the composite field into its blocks (``blocks``, in label order),
+routes each to its summand's metric method, and rebuilds the composite
+(``with_blocks``). This is a **pure Pattern-2 composition**: the
 direct-sum space owns only the *structure* (how to split and recombine);
 it introduces **no new metric arithmetic** — the per-axis broadcast and
 the pseudo-inverse already live in
@@ -377,13 +373,13 @@ bulk}\rangle_{G_{\rm bulk}} + \langle a_{\rm trace}, b_{\rm
 trace}\rangle_{G_{\rm trace}}` — the defining property of a direct-sum
 Hilbert space.
 
-The space is **duck-typed** on the composite field (``.bulk`` /
-``.boundary`` leaves, each a frozen dataclass with a ``.values``
-ndarray; rebuilt via :func:`dataclasses.replace`) so that the
+The space is **duck-typed** on the typed element's three accesses, ``blocks``, ``labels`` and
+``with_blocks`` (a leaf block is rebuilt by ``with_values``, a
+:func:`dataclasses.replace`), so that the
 ``numerics`` layer never imports the ``transport`` layer — an
 architectural firewall that keeps the operator-algebra primitives
 domain-agnostic. The identity is the members' keys,
-``("full_field", interior key, trace key)`` (:ref:`spaces-identity-key`;
+``("dsum", (("bulk", bulk key), ("trace", trace key)))`` (:ref:`spaces-identity-key`;
 since S7, 2026-10-22), with ``shape = (n_bulk + n_trace,)``, so two
 composites are equal iff their blocks are, metrics included. Until S7 the
 identity was the inherited ``(name, shape)`` tuple, made content-bearing
