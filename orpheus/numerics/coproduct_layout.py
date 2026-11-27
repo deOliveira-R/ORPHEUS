@@ -53,6 +53,16 @@ __all__ = [
 K = TypeVar("K", bound=Hashable)
 
 
+def _index_along(shape: tuple[int, ...], axis: int) -> NDArray:
+    r"""The index along ``axis`` of every coordinate of an array of ``shape``, in C order (an integer array of the array's size): the one body of "the group of each coordinate".
+
+    It lives here, the lower of the two modules that need it (:meth:`CoproductLayout.axis_index` and :meth:`~orpheus.numerics.space.TensorSpace.axis_index_of_coordinates`;
+    ``space`` imports this module, never the reverse), so that the grid is spelled once.
+    """
+    index = np.arange(shape[axis]).reshape(tuple(-1 if i == axis else 1 for i in range(len(shape))))
+    return np.broadcast_to(index, shape).ravel().astype(np.intp)
+
+
 @dataclass(frozen=True)
 class LayoutBlock(Generic[K]):  # concept: layout | role: part | kind: set
     r"""One block of a :class:`CoproductLayout`: a key, a shape and the flat region it owns.
@@ -270,9 +280,7 @@ class CoproductLayout(Generic[K]):  # concept: layout | role: arm | kind: set
         for block in self.blocks.values():
             if not -len(block.shape) <= axis < len(block.shape):
                 raise ValueError(f"CoproductLayout.axis_index: block {block.key!r} of shape {block.shape} has no axis {axis}")
-            ax = axis % len(block.shape)
-            index = np.arange(block.shape[ax]).reshape(tuple(-1 if i == ax else 1 for i in range(len(block.shape))))
-            out[block.region] = np.broadcast_to(index, block.shape).ravel()
+            out[block.region] = _index_along(block.shape, axis % len(block.shape))
         return out
 
     @classmethod

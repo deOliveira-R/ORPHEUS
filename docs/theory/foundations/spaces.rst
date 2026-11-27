@@ -7587,8 +7587,10 @@ sum of the sizes before it, so the blocks tile ``range(n)`` exactly and a layout
 is the partition: ``slice_of(label)`` is the slice of the flat chart, and no second type holds the same index sets. No consumer cuts a block by its offset: it
 reads ``LayoutBlock.region`` or ``slice_of``, and a quantity defined per coordinate along a block axis (the energy group of every coordinate of a trace) is
 :meth:`~orpheus.numerics.coproduct_layout.CoproductLayout.axis_index`, computed once by the layout. The sum's own
-:meth:`~orpheus.numerics.direct_sum.DirectSumSpace.with_coordinates` is the one place a flat chart is cut into the blocks of a typed element, and ``member`` and the
-composites' ``from_flat`` are written over it.
+:meth:`~orpheus.numerics.direct_sum.DirectSumSpace.with_coordinates` is the one place a flat chart is cut into the blocks of an element whose members carry spaces, and ``member`` and ``Composite._from_flat`` (the
+``from_flat`` of ``FullField``, ``TimedFullField`` and ``RadialCharacteristicField``) are written over it. ``CoupledField.from_flat`` is the one other cut: it slices by its
+members' own flat sizes and hands each piece to the member's ``from_flat``, because a member of the ravellable protocol (``to_flat`` and ``from_flat``) need not carry a space, and
+the sum's verb reads each block's summand from the space (tried: the block solve's toy members in ``test_coupled_operator.py`` have no ``space``, 17 of the 128 rows of that file and ``test_timed_full_field.py`` went red).
 
 **Identity.** A sum is its ordered ``(label, summand key)`` pairs. Two sums over isomorphic summands with different labels are unequal, so are
 two sums over the same labelled summands in two orders (the offsets differ), and a nested sum is not equal to its flattening. The carrier is no part

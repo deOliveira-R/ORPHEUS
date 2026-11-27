@@ -129,6 +129,17 @@ def offset_reads(source: str) -> list[int]:
     return dp.attribute_reads(source, frozenset({"offset"}))
 
 
+def block_start_reads(source: str) -> list[int]:
+    """The line of every ``.start`` read of a block's region: an attribute ``start`` whose value is a ``slice_of(...)`` call or a ``region`` attribute (ruling X5: the offset under another spelling)."""
+    hits = []
+    for n in ast.walk(ast.parse(source)):
+        if isinstance(n, ast.Attribute) and n.attr == "start":
+            v = n.value
+            if (isinstance(v, ast.Call) and isinstance(v.func, ast.Attribute) and v.func.attr == "slice_of") or (isinstance(v, ast.Attribute) and v.attr == "region"):
+                hits.append(n.lineno)
+    return hits
+
+
 def test_offsets_once() -> None:
     """G05e. ``ast`` over ``orpheus/`` (derivations excluded): the accumulator pattern ``NAME += <expr>``, ``NAME`` in {cursor, start, offset}, inside a ``for`` appears in no file but the layout
     (``numerics/coproduct_layout.py``) and ``numerics/metric.py`` (``FactoredMetric``'s slot walk, exempt by name: a tensor slot offset). The predicate reads this spelling only: a ``np.cumsum`` or
@@ -151,8 +162,14 @@ def test_offsets_once() -> None:
     # Ruling V2 widens it: no read of ``.offset`` at all outside the layout's own module (an index computed from it, ``start = slot.offset + k * stride``, is the same hand cut with no slice).
     _require(offset_reads("def f(slot):\n    return slot.offset + 3\n") == [2], "the offset-read predicate does not read a planted index computation")
     _require(offset_reads("def f(slot):\n    return slot.region.start\n") == [], "the offset-read predicate reads region.start as an offset read")
+    # Ruling X5 widens it again: the same datum spelled ``space.slice_of(K).start`` or ``slot.region.start`` is the offset read, whatever shifts by it.
+    _require(block_start_reads("def f(space):\n    return space.slice_of(K).start\n") == [2], "the start-read predicate does not read a planted slice_of(...).start")
+    _require(block_start_reads("def f(slot):\n    return slot.region.start + 1\n") == [2], "the start-read predicate does not read a planted region.start")
+    _require(block_start_reads("def f(buf):\n    return buf.start\n") == [], "the start-read predicate reads a bare .start")
     layout_home = "orpheus/numerics/coproduct_layout.py"
     _require(bool(offset_reads(next(s for p, s in dp.orpheus_sources() if p == layout_home))), "the offset-read predicate does not read the layout's own module, a known member")
+    starts = {p: v for p, s in dp.orpheus_sources() if (v := block_start_reads(s))}
+    _require(not starts, f"{sum(len(v) for v in starts.values())} .start reads of a block's region or slice_of in orpheus/: {starts}")
     reads = {p: v for p, s in dp.orpheus_sources() if p != layout_home and (v := offset_reads(s))}
     _require(not reads, f"{sum(len(v) for v in reads.values())} reads of a block's .offset outside the layout's module: {reads}")
 

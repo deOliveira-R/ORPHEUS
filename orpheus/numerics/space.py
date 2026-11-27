@@ -76,6 +76,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .axis import Axis, BasisKind, Declared
+from .coproduct_layout import _index_along
 from .coordinate_space import coordinates, leading_coordinates
 from .factor import Factor, FormlessVariance, Kind, Subquotient, Variance, VarianceChart
 from orpheus.values.content import content_digest, name_digest
@@ -1018,13 +1019,11 @@ class TensorSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
         The sibling of :meth:`~orpheus.numerics.coproduct_layout.CoproductLayout.axis_index` on a space: ``space.axis_index_of_coordinates("energy")`` is the
         group of each coordinate. The factor must span one array position (an energy axis does; a 2-D spatial factor has no single index).
         """
-        k = self._axis_index(label)
-        extent = self.factors[k].axis.shape
-        if len(extent) != 1:
-            raise ValueError(f"axis_index_of_coordinates: the factor {label!r} of {self!r} spans {len(extent)} array positions, so it has no single index")
-        position = sum(len(f.axis.shape) for f in self.factors[:k])
-        index = np.arange(extent[0]).reshape(tuple(-1 if i == position else 1 for i in range(len(self.shape))))
-        return np.broadcast_to(index, self.shape).ravel().astype(np.intp)
+        positions = self.positions_spanned_by(self.sub(label))
+        if len(positions) != 1:
+            raise ValueError(f"axis_index_of_coordinates: the factor {label!r} of {self!r} spans {len(positions)} array positions, so it has no single index")
+        (position,) = positions
+        return _index_along(self.shape, position)
 
     def factor(self, label: str) -> Factor:
         r"""The factor labeled ``label``."""

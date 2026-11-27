@@ -702,22 +702,23 @@ def _returned_state(
     r"""The returned iterate WHOLE, as the coupled state the Solution stores:
     System A's composite (wrapped into the timed carrier when the driver
     handed back a bare ``FullField``), paired with System B's ψ½ member on a
-    carrying mesh.  ONE construction convention for every entry (step 3).  The labels are the hub's sum's own."""
+    carrying mesh.  ONE construction convention for every entry (step 3).  The labels are the hub's sum's own: a ray-less state is the one system it is, labelled by the summand it lives on."""
     member = system_a
     if not isinstance(member, TimedFullField):
         member = TimedFullField(
             interior=member.interior, boundary=member.boundary,
             _history=(), history_depth=2,
         )
-    systems = (member,) if ray is None else (member, ray)
-    return CoupledField(systems=systems, labels=problem.system.space.labels)
+    if ray is None:
+        return CoupledField(systems=(member,), labels=problem.system.space.labels_holding(member.space))
+    return CoupledField(systems=(member, ray), labels=problem.system.space.labels)
 
 
 def _as_coupled(problem: "SNProblem", field: "FullField | TimedFullField | CoupledField") -> "CoupledField":
     r"""A source or state on the hub's coupled carrier: a bare (seedless) composite
     is the ONE-system coupled field; a coupled one is itself.  The same lift the
     hub's ``source_posing`` applies — a posing lives on the pencil's ends."""
-    return field if isinstance(field, CoupledField) else CoupledField(systems=(field,), labels=problem.system.space.labels)
+    return field if isinstance(field, CoupledField) else CoupledField(systems=(field,), labels=problem.system.space.labels_holding(field.space))
 
 
 #: Either flavour of the System-A composite — both carry a ``.boundary``.

@@ -1135,7 +1135,7 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
 
         # The question lives on the pencil's ends — the coupled space; a bare
         # (seedless) full-field source is the ONE-system coupled state, labelled by the hub's own sum.
-        lifted = source if isinstance(source, CoupledField) else CoupledField(systems=(source,), labels=self.system.space.labels)
+        lifted = source if isinstance(source, CoupledField) else CoupledField(systems=(source,), labels=self.system.space.labels_holding(source.space))
         return SourcePosing.of_pencil(self.pencil, 1.0, lifted)
 
     @cached_property

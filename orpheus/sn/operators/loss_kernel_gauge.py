@@ -903,15 +903,11 @@ def _balance_weights(problem: "SNProblem") -> NDArray:
     return np.concatenate([np.ravel(bulk), -ordinate_weight * _trace_flux_weights(problem)])
 
 
-def _offset(indices: NDArray, by: int) -> NDArray:
-    return (indices + by).astype(np.intp)
-
-
 def predicted_discretization_kernel(problem: "SNProblem") -> PredictedKernel:
     r"""The diamond-difference kernel on the full field: right generators :math:`\Phi`, left :math:`W\Phi`.
 
     One pair of summands per ``(ordinate orbit, group)`` block: support the
-    block's trace degrees of freedom (offset past the bulk in the full field's
+    block's trace degrees of freedom (the trace summand's positions in the full field's
     flat chart), right generators the §3 pair generators
     (:func:`_block_generators`), declared :math:`G`-orthogonal to the
     constants (every mode is mirror-odd; #636 owes the proof), and left
@@ -938,7 +934,7 @@ def predicted_discretization_kernel(problem: "SNProblem") -> PredictedKernel:
     freedom = gauge_freedom(problem)
     if not freedom.present:
         return PredictedKernel.trivial(space, f"no diamond-difference kernel: {freedom.because}")
-    n_bulk = space.slice_of(TRACE).start
+    trace_positions = np.arange(space.n_coordinates, dtype=np.intp)[space.slice_of(TRACE)]
     balance = _balance_weights(problem)
     right: list[KernelSummand] = []
     left: list[KernelSummand] = []
@@ -947,7 +943,7 @@ def predicted_discretization_kernel(problem: "SNProblem") -> PredictedKernel:
             continue
         for group in range(int(problem.ng)):
             indices, generators = _block_generators(problem, orbit, group, active)
-            support = _offset(indices, n_bulk)
+            support = trace_positions[indices]
             label = f"sn_trace_orbit{orbit}_g{group}"
             right.append(KernelSummand(support, generators, label, orthogonal_to_constants=True))
             left.append(KernelSummand(support, balance[support][:, None] * generators, f"{label}_annihilator"))

@@ -144,7 +144,7 @@ def _kernel_arrays(kernel, prefix: str) -> dict[str, np.ndarray]:
 
 
 def _gauge_arrays(problem) -> dict[str, np.ndarray]:
-    """The kernels the loss-kernel gauge predicts through its hand slices of the bulk size, where the problem can call them (the key set records which can)."""
+    """The kernels the loss-kernel gauge predicts (the trace summand's positions read from the layout), where the problem can call them (the key set records which can)."""
     from orpheus.sn.operators.loss_kernel_gauge import predicted_discretization_kernel, predicted_physical_kernel
 
     out: dict[str, np.ndarray] = {}

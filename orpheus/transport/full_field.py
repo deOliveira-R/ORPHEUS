@@ -142,8 +142,7 @@ from typing import TYPE_CHECKING, Callable, ClassVar, Generic, Self, Sequence, T
 import numpy as np
 
 from orpheus.numerics.field import Field
-from orpheus.numerics.coproduct_layout import CoproductLayout
-from orpheus.numerics.direct_sum import BULK, TRACE, DirectSumSpace, SumCarrier, with_values
+from orpheus.numerics.direct_sum import BULK, TRACE, DirectSumSpace, SumCarrier
 from orpheus.transport.fields._bases import (
     BulkField,
     BoundaryField,
@@ -494,22 +493,12 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
     def _from_flat(self, flat: "NDArray") -> "Self":
         r"""Rebuild a composite of ``self``'s type from a flat vector (self = template).
 
-        The instance-hook inverse of :meth:`_flat_parts`: a
-        :class:`~orpheus.numerics.coproduct_layout.CoproductLayout` over the two
-        blocks cuts the flat chart, each leaf is rebuilt by
-        :func:`~orpheus.numerics.direct_sum.with_values`, and the pair routes
-        through the :meth:`with_blocks` hook. Instance method (not classmethod) so the ``Self``
+        The instance-hook inverse of :meth:`_flat_parts`: the composite's own space cuts the flat chart
+        (:meth:`~orpheus.numerics.direct_sum.DirectSumSpace.with_coordinates`, the one place a flat chart is cut into the blocks of a typed element) and
+        the pair routes through the :meth:`with_blocks` hook. Instance method (not classmethod) so the ``Self``
         override is Liskov-clean.
         """
-        # The blocks of a composite are keyed by position here: the base class names no labels (its subclasses' ``LABELS`` do), and the cut is the layout's.
-        layout = CoproductLayout(((0, tuple(self.interior.values.shape)), (1, tuple(self.boundary.values.shape))))
-        if flat.size != layout.total_size:
-            raise ValueError(
-                f"{type(self).__name__}.from_flat: flat.size = {flat.size} does "
-                f"not match template total size {layout.total_size} (the blocks' sizes {layout.sizes})"
-            )
-        parts = layout.unpack(flat)
-        return self.with_blocks((with_values(self.interior, parts[0]), with_values(self.boundary, parts[1])))
+        return self.space.with_coordinates(self, flat)
 
     # ── Diagnostics ──────────────────────────────────────────────────
 

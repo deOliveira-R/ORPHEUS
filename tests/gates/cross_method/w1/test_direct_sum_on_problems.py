@@ -291,6 +291,32 @@ def test_carrier_space_equals_builder_space() -> None:
     _require(checks == 15, f"G05g ran on {checks} fixtures, expected 15")
 
 
+def test_a_bare_lift_on_a_carrying_hub_is_posed_on_its_own_summand_and_refused_by_the_posing() -> None:
+    """G05g, the lift (ruling X1 of the second post-verify pass). On the six carrying fixtures (the sphere and the cylinder at three group counts), a bare composite lifted onto the hub's sum
+    by ``_as_coupled`` and by ``_returned_state`` without a ray is the field it is: one system under ONE label, the label of the one summand whose space equals the field's (``labels_holding``), so its
+    ``.space`` is a one-summand sum that is not the hub's; ``problem.source_posing`` over the bare field and ``SourcePosing.of_pencil`` over ``_as_coupled`` each refuse it with a ``ValueError`` that
+    names the operator's ends (the base tip's refusal, ``numerics/posing.py``), under ``-O``. Mutation: read ``V.labels`` whole at the lift (``labels=problem.system.space.labels`` in ``_as_coupled``): the
+    field has 1 system and 2 labels, its ``.space`` is not a one-summand sum, and the refusal is a ``zip`` error, so this row reddens. Exact on any host: spaces and refusals."""
+    from orpheus.numerics.posing import SourcePosing
+    from orpheus.sn.solver import _as_coupled, _returned_state
+
+    seen = 0
+    for name, problem in sn_fixtures():
+        V = problem.system.space
+        if len(V.labels) != 2:
+            continue
+        bare = problem.full_field_space.carrier.zeros()
+        for kind, lifted in (("_as_coupled", _as_coupled(problem, bare)), ("_returned_state", _returned_state(problem, bare, None))):
+            _require(len(lifted.systems) == 1 and len(lifted.labels) == 1, f"{name}: {kind} of a bare field has {len(lifted.systems)} systems and {len(lifted.labels)} labels, expected 1 and 1")
+            _require(lifted.labels == V.labels_holding(bare.space), f"{name}: {kind} labels the bare field {list(lifted.labels)}, not by the summand it lives on")
+            _require(lifted.space != V, f"{name}: {kind} of a bare field is on the hub's own sum")
+        for kind, posing in (("source_posing", lambda: problem.source_posing(bare)), ("of_pencil", lambda: SourcePosing.of_pencil(problem.pencil, 1.0, _as_coupled(problem, bare)))):
+            with pytest.raises(ValueError, match="pose q on the operator's ends"):
+                posing()
+        seen += 1
+    _require(seen == 6, f"the lift row ran on {seen} carrying fixtures, expected 6")
+
+
 def test_coupled_births_take_the_hubs_labels() -> None:
     """G05g, the births. On the six carrying fixtures (the sphere and the cylinder at three group counts), the three coupled states the solver mints beyond ``_returned_state`` and ``_as_coupled``
     live on the hub's sum: ``_coupled_flux_state``, ``_coupled_source_state`` and ``_typed_balance`` each return a ``CoupledField`` with ``.space == problem.system.space`` (the labels are read from

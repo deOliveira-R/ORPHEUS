@@ -621,11 +621,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
                 f"CoupledOperator.{side}: the coupled field carries "
                 f"{x.n_systems} systems but this grid expects {arity}."
             )
-        if tuple(x.labels) != space.labels:
-            raise ValueError(
-                f"CoupledOperator.{side}: the coupled field is labelled {list(x.labels)} but the space's summands are "
-                f"{list(space.labels)}; the systems are admitted by label, never by position."
-            )
+        space.admit_labels(x.labels, f"CoupledOperator.{side}")
         return x
 
     def apply(self, x: "CoupledField", /) -> "CoupledField":
@@ -1227,11 +1223,7 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
                 f"SystemRestrictionOperator.apply: iterate couples "
                 f"{len(x.systems)} systems but the domain couples {n}."
             )
-        if tuple(x.labels) != self._space.labels:
-            raise ValueError(
-                f"SystemRestrictionOperator.apply: the iterate is labelled {list(x.labels)} but the domain's summands are "
-                f"{list(self._space.labels)}; the system {self._label!r} is selected by label, never by position."
-            )
+        self._space.admit_labels(x.labels, f"SystemRestrictionOperator.apply (the system {self._label!r})")
         return CoupledField(systems=(x.systems[self._index],), labels=(self._label,))
 
     def apply_transpose(self, y: "CoupledField", /) -> "CoupledField":

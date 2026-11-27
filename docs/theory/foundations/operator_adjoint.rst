@@ -1375,7 +1375,7 @@ These results are pinned by two foundation-tagged test files:
   wrong-metric control on slab / sphere (2). The reciprocity inner
   products are evaluated with an **independent** Gram fold so a wrong
   *metric* cannot mask a wrong *adjoint*.
-* ``tests/gates/numerics/test_full_field_space.py`` — pins the
+* ``tests/gates/numerics/test_direct_sum_space.py`` — pins the
   :class:`DirectSumSpace` structure (flat direct-sum ``shape``,
   inequality on a different total dimension, dict-key usability, the
   composite's own ``inner_product_weights`` staying ``None``), and its

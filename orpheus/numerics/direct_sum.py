@@ -201,6 +201,12 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         except KeyError:
             raise KeyError(f"{label!r} is not a summand label; the labels are {list(self.labels)}") from None
 
+    def labels_holding(self, space: FunctionSpace) -> tuple[str, ...]:
+        r"""The labels of the summands whose space equals ``space``, in order: the labels a field living on ``space`` carries when it is lifted onto this sum
+        as a sum of its own (one system, the one summand it is). On a one-summand sum of that space this is :attr:`labels`; on a larger sum it is a proper
+        part, so the lifted field's space is another sum than this one and the question that compares the two refuses it by name."""
+        return tuple(label for label, s in self.summands if s == space)
+
     def leaf(self, *path: str) -> FunctionSpace:
         r"""The summand at a nested label path: ``leaf("a", "b")`` is ``summand("a").summand("b")``."""
         found: FunctionSpace = self
@@ -317,7 +323,7 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         coordinates. A composite on a DUAL space still labels its blocks with the primal spaces (the role of a carrier under a dual arrow is #633), so a typed
         block would be refused there. Retires when a composite member is compared with this space by content and the summand verbs take typed blocks.
         """
-        if not (hasattr(x, "blocks") and hasattr(x, "with_blocks")):
+        if not (hasattr(x, "blocks") and hasattr(x, "with_blocks") and hasattr(x, "labels")):
             raise AttributeError(
                 f"DirectSumSpace.{verb} takes the typed element of the sum (a carrier with blocks, with_blocks and labels); got {type(x).__name__}"
             )
@@ -327,13 +333,17 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
                 f"DirectSumSpace.{verb}: the element carries {len(blocks)} blocks but the sum has {len(self.summands)} summands {list(self.labels)} — "
                 f"the field/space pairing is inconsistent."
             )
-        labels = x.labels
+        self.admit_labels(x.labels, f"DirectSumSpace.{verb}")
+        return blocks
+
+    def admit_labels(self, labels: Any, owner: str) -> None:
+        r"""The one comparison of an element's labels with the sum's: the elements of a sum are admitted by label, never by position. A refusal is a ``ValueError`` naming ``owner``,
+        the two label tuples and the rule; the typed verbs of the sum and the two doors of the coupled operators (``CoupledOperator`` and ``SystemRestrictionOperator``) all call it."""
         if tuple(labels) != self.labels:
             raise ValueError(
-                f"DirectSumSpace.{verb}: the element is labelled {list(labels)} but the sum's summands are {list(self.labels)}; "
+                f"{owner}: the element is labelled {list(labels)} but the sum's summands are {list(self.labels)}; "
                 f"the blocks are admitted by label, never by position."
             )
-        return blocks
 
     def _on_blocks(self, x: Any, verb: str, leg: Callable[[FunctionSpace, Any], Any]) -> Any:
         r"""A block-diagonal action on the typed element, returned as the element's own class: each block goes to its summand's ``leg``."""
@@ -466,12 +476,13 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         r"""The typed element ``x``, its class and everything it carries kept, rebuilt with these flat coordinates.
 
         Each block is rebuilt from its part of the coordinates: a block whose summand is a sum by that summand's own :meth:`with_coordinates`, any other
-        block through :func:`with_values`. This is the one place a flat chart is cut into blocks (law L13): the cut is the layout's.
+        block through :func:`with_values`. This is the one place a flat chart is cut into the blocks of an element whose members carry spaces (law L13): the cut is the layout's, and ``Composite._from_flat`` is written over it. ``CoupledField.from_flat`` is the one other cut: it
+        cuts by its members' own flat sizes and delegates each piece to the member's ``from_flat``, because a member of the ravellable protocol need not carry a space.
         """
         flat = np.asarray(coordinates, dtype=float).ravel()
         if flat.size != self.n_coordinates:
             raise ValueError(
-                f"DirectSumSpace.with_coordinates: {flat.size} coordinates given, the sum has {self.n_coordinates} ({list(self.labels)} of sizes {self.layout.sizes})"
+                f"DirectSumSpace.with_coordinates: flat.size = {flat.size} but the sum has {self.n_coordinates} coordinates ({list(self.labels)} of sizes {self.layout.sizes})"
             )
         parts = self.layout.unpack(flat)
         blocks = []
