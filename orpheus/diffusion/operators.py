@@ -236,21 +236,22 @@ def _require_trace_layout(space: ScalarTraceSpace) -> CoproductLayout[str]:
 
 
 def _trace_dof_columns(
-    n_interior: int, layout: CoproductLayout[str], face: str, row: int, ng: int,
+    n_interior: int, layout: CoproductLayout[str], face: str, row: int,
 ) -> np.ndarray:
     r"""Flat composite DOF indices of one trace component row on ``face``.
 
     The single spelling of the trace half of the global DOF numbering
     (crosswalk "Global DOF numbering"): the composite flat vector is
-    ``[bulk C-ravel | trace buffer]``, and a face's ``(2, ng)`` slot sits
-    at its :class:`CoproductLayout` offset with component-major C-order — so
-    component ``row`` (:attr:`ScalarTraceSpace.OUTFLOW_ROW` = J⁺ /
-    ``INFLOW_ROW`` = J⁻), group ``g`` lives at
-    ``n_interior + offset(face) + row·ng + g``. Returns the ``(ng,)`` index
-    vector for all groups of that component.
+    ``[bulk C-ravel | trace buffer]``, and a face's ``(2, ng)`` slot is the
+    block the :class:`CoproductLayout` cuts for it, component-major in C-order.
+    The positions of component ``row`` (:attr:`ScalarTraceSpace.OUTFLOW_ROW`
+    = J⁺ / ``INFLOW_ROW`` = J⁻) are read from the block's own view of the
+    trace's flat positions, so no offset is computed here. Returns the
+    index vector of that component in the block's C-order: ``(ng,)``, one
+    per group, on the 1-D diffusion mesh, whose face is one point.
     """
-    positions = layout.blocks[face].slice_view(np.arange(layout.total_size, dtype=np.intp))  # (component, group, *face cells): the flat position of each
-    return n_interior + positions[row].reshape(ng, -1)[:, 0]
+    positions = layout.blocks[face].slice_view(np.arange(layout.total_size, dtype=np.intp))  # (component, group): the flat position of each
+    return n_interior + positions[row].ravel()
 
 
 @dataclass(frozen=True)
@@ -507,10 +508,10 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):  # concept: gra
         # ── Boundary faces: trace coupling + the P1 closure rows ─────────
         for face, c in self._face_closures.items():
             j_plus = _trace_dof_columns(
-                n_interior, layout, face, ScalarTraceSpace.OUTFLOW_ROW, ng,
+                n_interior, layout, face, ScalarTraceSpace.OUTFLOW_ROW,
             )
             j_minus = _trace_dof_columns(
-                n_interior, layout, face, ScalarTraceSpace.INFLOW_ROW, ng,
+                n_interior, layout, face, ScalarTraceSpace.INFLOW_ROW,
             )
             edge_cell = np.arange(ng) * nx + c.edge
             # Edge bulk row: A_s (J⁺ − J⁻)/V_e — the axis_sign squares
@@ -649,10 +650,10 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):  # co
         for face, law in self.face_laws.items():
             law_matrix = law.as_matrix(basis_shape=(ng,))     # (ng, ng)
             j_plus = _trace_dof_columns(
-                n_interior, layout, face, ScalarTraceSpace.OUTFLOW_ROW, ng,
+                n_interior, layout, face, ScalarTraceSpace.OUTFLOW_ROW,
             )
             j_minus = _trace_dof_columns(
-                n_interior, layout, face, ScalarTraceSpace.INFLOW_ROW, ng,
+                n_interior, layout, face, ScalarTraceSpace.INFLOW_ROW,
             )
             to_row, from_col = np.nonzero(law_matrix)
             rows.append(j_minus[to_row])
