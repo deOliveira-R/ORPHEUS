@@ -776,3 +776,11 @@ group/algebra-type gate.
   `feedback_cross_method_protocol.md` (`L8`). **Per-carve RECIPES** → `MEMORY.md`
   §3. **Measured scope costs and the serial-host gate** → `MEMORY.md` §2 and the
   main memory's `reference_test_execution_env`.
+
+## L136 (N05 gates, 2026-11-26): a record key set can read live while its payload is empty
+
+A bit-identity record whose gauge rows were `.count` keys only (0 summands on all 12 fixtures) passed its own controls and froze a vacuous item into the record
+before any production edit. Clause not covered: `instrument-doctrine` X1 asks for a positive control per instrument; a RECORD owes one per ROW FAMILY, i.e.
+print the number of non-count payload keys per family before taking it, and build the fixture that activates the family when it is zero (here two all-specular
+2-D boxes: 112 arrays). Also: write a gate's body against the retiring class where it can be run today (the biproduct operator row, the 27 of 33 energy split),
+because a body never run past its first line is a defect the implementer may not repair (the gate may not be re-worded).

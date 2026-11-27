@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **21788**
+Total tests collected: **21831**
 
 V&V level distribution
 ----------------------
@@ -19,11 +19,11 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 2253, 10.3%
-   L1, 2996, 13.8%
+   L1, 2996, 13.7%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 16386, 75.2%
-   unmarked, 68, 0.3%
+   foundation, 16423, 75.2%
+   unmarked, 74, 0.3%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 21641
+   explicit, 21678
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 68
+   unmarked, 74
 
 Module × level grid
 -------------------
@@ -142,7 +142,7 @@ Module × level grid
    cross_method/test_family_convergence_contract, 0, 0, 0, 0, 45, 0
    cross_method/test_group_permutation_invariance, 0, 0, 10, 0, 0, 0
    cross_method/test_material_mesh_admission, 0, 0, 0, 0, 1, 0
-   cross_method/test_member_seam_builders, 0, 0, 0, 0, 23, 0
+   cross_method/test_member_seam_builders, 0, 0, 0, 0, 25, 0
    cross_method/test_method, 0, 0, 0, 0, 5, 0
    cross_method/test_method_mesh_binding, 0, 4, 0, 0, 0, 0
    cross_method/test_one_parse_on_production, 54, 0, 0, 0, 0, 0
@@ -500,26 +500,24 @@ Module × level grid
    numerics/test_content_identity_question, 0, 0, 0, 0, 52, 0
    numerics/test_convergence_evidence_reader_is_exhaustive, 0, 0, 0, 0, 21, 0
    numerics/test_coordinate_space, 54, 0, 0, 0, 0, 0
-   numerics/test_coupled_operator, 0, 0, 0, 0, 90, 0
+   numerics/test_coupled_operator, 0, 0, 0, 0, 92, 0
    numerics/test_covector, 12, 0, 0, 0, 0, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_dense_metric, 0, 0, 0, 0, 14, 0
    numerics/test_descent, 0, 0, 0, 0, 20, 0
    numerics/test_diagonal_operator, 17, 0, 0, 0, 3, 0
+   numerics/test_direct_sum_space, 0, 0, 0, 0, 7, 3
    numerics/test_dual_metric, 0, 0, 0, 0, 85, 0
    numerics/test_eigenvalue, 0, 33, 0, 0, 0, 0
    numerics/test_enclosure, 0, 0, 0, 0, 38, 0
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 4, 0
    numerics/test_exactness, 0, 0, 0, 0, 21, 0
-   numerics/test_face_layout, 0, 0, 0, 0, 30, 0
-   numerics/test_face_layout_typed_key, 0, 0, 0, 0, 5, 0
    numerics/test_face_streaming_normal, 0, 0, 0, 0, 5, 0
    numerics/test_factored_adjoint_identity, 13, 0, 0, 0, 0, 0
    numerics/test_field, 0, 0, 0, 0, 31, 0
    numerics/test_fixed_point_step, 0, 0, 0, 0, 9, 0
    numerics/test_frame, 0, 18, 0, 0, 47, 5
    numerics/test_fredholm_verdict, 13, 0, 0, 0, 0, 0
-   numerics/test_full_field_space, 0, 0, 0, 0, 7, 3
    numerics/test_gauge, 0, 0, 0, 0, 15, 0
    numerics/test_gauss_rule_fingerprint, 0, 14, 0, 0, 7, 0
    numerics/test_gauss_rules_correctly_rounded, 0, 234, 0, 0, 43, 0
@@ -540,6 +538,8 @@ Module × level grid
    numerics/test_iteration, 0, 0, 0, 0, 42, 0
    numerics/test_iteration_record, 0, 0, 0, 0, 136, 4
    numerics/test_kernel_projection_gauge, 63, 0, 0, 0, 0, 0
+   numerics/test_layout_blocks, 0, 0, 0, 0, 27, 0
+   numerics/test_layout_typed_key, 0, 0, 0, 0, 5, 0
    numerics/test_legendre_basis, 0, 0, 0, 0, 34, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
    numerics/test_linear_combination, 41, 0, 0, 0, 0, 0
@@ -779,7 +779,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 7, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 13, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 584, 0
+   test_layer_imports, 0, 0, 0, 0, 585, 0
    test_memo_old_path, 0, 0, 0, 0, 8, 0
    test_one_real_parser_census, 0, 0, 0, 0, 4, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
@@ -817,7 +817,7 @@ Module × level grid
    transport/test_boundary_conditions_map, 0, 0, 0, 0, 1, 0
    transport/test_boundary_conditions_package, 0, 0, 0, 0, 3, 0
    transport/test_bulk_lift, 0, 0, 0, 0, 21, 0
-   transport/test_composite, 0, 0, 0, 0, 15, 0
+   transport/test_composite, 0, 0, 0, 0, 16, 0
    transport/test_content_identity_transport, 0, 0, 0, 0, 110, 0
    transport/test_energy_leaves_as_matrix, 0, 0, 0, 0, 2, 0
    transport/test_field_units, 0, 0, 0, 0, 43, 0
@@ -857,19 +857,25 @@ Module × level grid
    w1/test_allow_list_is_the_pinned_set, 0, 0, 0, 0, 4, 0
    w1/test_axis_form_bytes, 0, 0, 0, 0, 2, 0
    w1/test_axis_form_derived, 0, 0, 0, 0, 6, 0
+   w1/test_axis_index_of_coordinates, 0, 0, 0, 0, 0, 6
    w1/test_axis_reader_mapping, 0, 0, 0, 0, 3, 0
    w1/test_bare_path_takes_the_matrix_as_stored, 0, 0, 0, 0, 1, 0
    w1/test_base_and_legacy_fields_refuse, 0, 0, 0, 0, 4, 0
+   w1/test_composite_record_bytes, 0, 0, 0, 0, 4, 0
    w1/test_content_identity_declaration, 0, 0, 0, 0, 18, 0
    w1/test_content_identity_factor, 0, 0, 0, 0, 18, 0
    w1/test_content_identity_metric, 0, 0, 0, 0, 16, 0
+   w1/test_coproduct_layout, 0, 0, 0, 0, 1, 0
    w1/test_declaration_normal_form, 0, 0, 0, 0, 21, 0
    w1/test_declared_requires_a_variance, 0, 0, 0, 0, 2, 0
    w1/test_dense_form_stated_face, 0, 0, 0, 0, 2, 0
    w1/test_dense_inverse_admission, 0, 0, 0, 0, 25, 0
    w1/test_dense_inverse_bytes, 0, 0, 0, 0, 43, 0
    w1/test_dense_kernel_declared, 0, 0, 0, 0, 39, 0
+   w1/test_direct_sum, 0, 0, 0, 0, 11, 0
+   w1/test_direct_sum_on_problems, 0, 0, 0, 0, 17, 0
    w1/test_dual_of_a_head_is_today, 0, 0, 0, 0, 1, 0
+   w1/test_face_measure_home, 0, 0, 0, 0, 1, 0
    w1/test_factor_dense_admission_table, 0, 0, 0, 0, 1, 0
    w1/test_factor_energy_law, 0, 0, 0, 0, 1, 0
    w1/test_factor_induced_form, 0, 0, 0, 0, 5, 0
@@ -1985,7 +1991,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**68 tests** have no V&V level marker.
+**74 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -2001,11 +2007,12 @@ taxonomy.
    ``tests/gates/numerics/test_concept_order.py``, 8
    ``tests/gates/numerics/test_riesz_legs.py``, 8
    ``tests/gates/sn/operators/test_loss_kernel_gauge.py``, 7
+   ``tests/gates/numerics/w1/test_axis_index_of_coordinates.py``, 6
    ``tests/gates/numerics/test_frame.py``, 5
    ``tests/gates/cross_method/w1/test_snapshot_controls.py``, 4
    ``tests/gates/geometry/test_kernel_corroboration.py``, 4
    ``tests/gates/numerics/test_iteration_record.py``, 4
-   ``tests/gates/numerics/test_full_field_space.py``, 3
+   ``tests/gates/numerics/test_direct_sum_space.py``, 3
    ``tests/gates/geometry/test_symmetry.py``, 2
    ``tests/gates/sn/sweep/core/test_cache.py``, 2
    ``tests/gates/cross_method/w1/test_snapshot_harness.py``, 1
