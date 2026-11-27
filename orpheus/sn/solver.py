@@ -71,8 +71,6 @@ from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from .coupled_system import (
-    SYSTEM_A_LABEL,
-    SYSTEM_B_LABEL,
     WithinGroupSystem,
     _system_a_member,
     _system_b_member,
@@ -697,29 +695,29 @@ class _StateProductionRate:  # concept: rate | role: part | kind: element.covect
 
 
 def _returned_state(
+    problem: "SNProblem",
     system_a: "FullField | TimedFullField",
     ray: "RadialCharacteristicField | None",
 ) -> "CoupledField":
     r"""The returned iterate WHOLE, as the coupled state the Solution stores:
     System A's composite (wrapped into the timed carrier when the driver
     handed back a bare ``FullField``), paired with System B's ψ½ member on a
-    carrying mesh.  ONE construction convention for every entry (step 3)."""
+    carrying mesh.  ONE construction convention for every entry (step 3).  The labels are the hub's sum's own."""
     member = system_a
     if not isinstance(member, TimedFullField):
         member = TimedFullField(
             interior=member.interior, boundary=member.boundary,
             _history=(), history_depth=2,
         )
-    if ray is None:
-        return CoupledField(systems=(member,), labels=(SYSTEM_A_LABEL,))
-    return CoupledField(systems=(member, ray), labels=(SYSTEM_A_LABEL, SYSTEM_B_LABEL))
+    systems = (member,) if ray is None else (member, ray)
+    return CoupledField(systems=systems, labels=problem.system.space.labels)
 
 
-def _as_coupled(field: "FullField | TimedFullField | CoupledField") -> "CoupledField":
+def _as_coupled(problem: "SNProblem", field: "FullField | TimedFullField | CoupledField") -> "CoupledField":
     r"""A source or state on the hub's coupled carrier: a bare (seedless) composite
     is the ONE-system coupled field; a coupled one is itself.  The same lift the
     hub's ``source_posing`` applies — a posing lives on the pencil's ends."""
-    return field if isinstance(field, CoupledField) else CoupledField(systems=(field,), labels=(SYSTEM_A_LABEL,))
+    return field if isinstance(field, CoupledField) else CoupledField(systems=(field,), labels=problem.system.space.labels)
 
 
 #: Either flavour of the System-A composite — both carry a ``.boundary``.
@@ -2427,7 +2425,7 @@ def solve_sn(
     # a LAW of the answer (``[M]`` |n − t| = 1.1e-16), not an approximation.
     answer = EigenOutcome(
         posing=problem.eigen_posing,
-        state=gauge.apply(_returned_state(final_psi_a, final_ray)),
+        state=gauge.apply(_returned_state(problem, final_psi_a, final_ray)),
         lam=float(keff_history[-1]),
         trajectory=tuple(float(k) for k in keff_history),
         gauge=gauge,
@@ -2700,7 +2698,7 @@ def solve_sn_adjoint(
     gauge = ScaleGauge(ke.compute_production_rate, 1.0)
     answer = EigenOutcome(
         posing=problem.eigen_posing.H(),
-        state=gauge.apply(_returned_state(system_a, adjoint_ray)),
+        state=gauge.apply(_returned_state(problem, system_a, adjoint_ray)),
         lam=float(k_adj),
         trajectory=tuple(float(k) for k in keff_history),
         gauge=gauge,
@@ -2857,7 +2855,7 @@ def solve_sn_adjoint_fixed_source(
     # The daggered posing A^H psi* = q* over the daggered pencil, which carries
     # the daggered kernel (ker A^H, never the forward projector), and its
     # Fredholm verdict (space-membership U0).
-    posing = SourcePosing.of_pencil(problem.pencil.H, 0.0, _as_coupled(q_star))
+    posing = SourcePosing.of_pencil(problem.pencil.H, 0.0, _as_coupled(problem, q_star))
     solvability = posing.solvability(conditioning=_SWEPT)
     # The Strategy mints the Green of the ADJOINT SPLIT (M†, N†): its own
     # value, not the forward Green's ``.H`` (ruling 66).
@@ -2867,7 +2865,7 @@ def solve_sn_adjoint_fixed_source(
     # Flux-classed zero start (the template) — the daggered iterate is an
     # adjoint FLUX; a zeros-like-the-source start would be source-classed
     # and trip the typed cross-class guard on the first increment ψ − ψ_prev.
-    psi_star_state, record = si.solve(_as_coupled(q_star), initial_guess=template)
+    psi_star_state, record = si.solve(_as_coupled(problem, q_star), initial_guess=template)
     psi_star = _system_a_member(psi_star_state)
     adjoint_ray = _system_b_member(psi_star_state)
     # #340 N6b — the exit defect of the DAGGERED equation, which is the one
@@ -2884,7 +2882,7 @@ def solve_sn_adjoint_fixed_source(
     # forward projector); the exit report reads the outcome's own residual A†ψ* − q*.
     answer = SourceOutcome(
         posing=posing,
-        state=_returned_state(psi_star, adjoint_ray),
+        state=_returned_state(problem, psi_star, adjoint_ray),
     )
     exit_report = _exit_report(
         answer, problem=problem, record=record,
@@ -3370,7 +3368,7 @@ def solve_sn_fixed_source(
     # Strategy-side point in Λ posed HERE (RULED F11, 2026-09-14) while the
     # hub's own ``source_posing(q)`` names the physical multiplying member at
     # σ = 1 (``solve_sn_multiplying_source``).  The Solution records it.
-    posing = SourcePosing.of_pencil(problem.pencil, 0.0, _as_coupled(q_ext_composite))
+    posing = SourcePosing.of_pencil(problem.pencil, 0.0, _as_coupled(problem, q_ext_composite))
     # Whether A psi = q has a solution is the posing's Fredholm verdict on the
     # pencil's predicted kernel (space-membership U0), decided here, before any
     # sweep; the admissibility member is the posing's own predicate, which a
@@ -3742,7 +3740,7 @@ def _solve_fixed_source_si(
     # outcome's own residual Aψ − q.
     answer = SourceOutcome(
         posing=posing,
-        state=_returned_state(angular_out, _system_b_member(psi_typed)),
+        state=_returned_state(problem, angular_out, _system_b_member(psi_typed)),
     )
     exit_report = _exit_report(
         answer, problem=problem, record=record,
@@ -3890,7 +3888,7 @@ def _solve_fixed_source_krylov(
     psi_full, gauge_correction = _exit_gauge(psi_full, kernel=posing.kernel)
     answer = SourceOutcome(
         posing=posing,
-        state=_returned_state(psi_full, _system_b_member(psi_typed)),
+        state=_returned_state(problem, psi_full, _system_b_member(psi_typed)),
     )
     exit_report = _exit_report(
         answer, problem=problem, record=record,

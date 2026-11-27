@@ -3,7 +3,7 @@ r"""L0 — :class:`~orpheus.numerics.coproduct_layout.CoproductLayout` foundatio
 The L1 primitive that powers post-D-G
 :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`. Pins:
 
-* :class:`LayoutBlock` invariants (``flat_size == prod(shape)``,
+* :class:`LayoutBlock` invariants (``flat_size`` the derived ``prod(shape)``,
   ``offset >= 0``).
 * :class:`CoproductLayout` invariants (``total_size == sum(slot.flat_size)``,
   contiguous packing with no gap or overlap).
@@ -39,9 +39,10 @@ class TestLayoutBlockInvariants:
         layout = CoproductLayout.from_named_shapes([("xmin", (4, 3))])
         assert layout.blocks["xmin"].flat_size == 12
 
-    def test_flat_size_mismatch_raises(self) -> None:
-        with pytest.raises(ValueError, match="flat_size"):
-            LayoutBlock(key="xmin", shape=(4, 3), flat_size=11)
+    def test_flat_size_is_derived_not_stored(self) -> None:
+        # A stored size could disagree with the shape; the property cannot, and the constructor takes no such keyword.
+        with pytest.raises(TypeError):
+            LayoutBlock(key="xmin", shape=(4, 3), flat_size=11)  # type: ignore[call-arg]
 
     def test_frozen(self) -> None:
         from dataclasses import FrozenInstanceError

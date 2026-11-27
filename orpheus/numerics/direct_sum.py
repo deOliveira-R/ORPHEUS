@@ -9,8 +9,9 @@ is the one place the offsets are computed (law L13). The injection :math:`\iota_
 **Identity** is the ordered ``(label, summand key)`` pairs: two sums over isomorphic summands with different labels are unequal, and so are two
 sums over the same labelled summands in two orders (the offsets differ). A nested sum is not equal to its flattening.
 
-**The typed element.** A sum reads and rebuilds its typed element through two accesses of the carrier class and nothing else: ``blocks``, the tuple
-of the summand elements in label order, and ``with_blocks(blocks)``, the same concrete class rebuilt with those blocks. A block whose summand is a
+**The typed element.** A sum reads and rebuilds its typed element through three accesses of the carrier class and nothing else: ``blocks``, the tuple
+of the summand elements in label order, ``labels``, the summand labels the element is admitted by (an object without them is not a carrier of a sum), and
+``with_blocks(blocks)``, the same concrete class rebuilt with those blocks. A block whose summand is a
 sum is handed to that summand's verb, which returns the block's own class; a block whose summand is not a sum is a
 :class:`~orpheus.numerics.space.Member` whose values the summand's verb acts on and which :func:`with_values` rebuilds, in one place.
 
@@ -219,6 +220,13 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         r"""The slice of the flat chart that holds summand ``label``."""
         return self.layout.slice_of(label)
 
+    def axis_index_of_coordinates(self, label: str) -> NDArray:
+        r"""The index along the axis ``label`` of every flat coordinate: each summand's answer, placed through the layout (the sum has no axes of its own)."""
+        out = np.zeros(self.n_coordinates, dtype=np.intp)
+        for name, s in self.summands:
+            out[self.layout.slice_of(name)] = s.axis_index_of_coordinates(label)
+        return out
+
     def pack(self, parts: Any) -> NDArray:
         r"""The injections summed: the flat chart of the parts ``{label: array of the summand's shape (and the common payload)}``."""
         return self.layout.pack(parts)
@@ -302,10 +310,16 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
     # ------------------------------------------------------------------
 
     def _blocks_of(self, x: Any, verb: str) -> tuple[Any, ...]:
-        r"""The blocks of a typed element, arity-checked; a refusal naming what ``verb`` takes."""
+        r"""The blocks of a typed element: the one door through which every typed verb reaches them. A refusal names what ``verb`` takes; the blocks are
+        admitted by arity and by label, and an object without labels is not a carrier of a sum.
+
+        ELEGANCE-DEBT[guard] #666: the summand of each block is not compared with the block's own space, so the verbs hand the summands' verbs bare
+        coordinates. A composite on a DUAL space still labels its blocks with the primal spaces (the role of a carrier under a dual arrow is #633), so a typed
+        block would be refused there. Retires when a composite member is compared with this space by content and the summand verbs take typed blocks.
+        """
         if not (hasattr(x, "blocks") and hasattr(x, "with_blocks")):
             raise AttributeError(
-                f"DirectSumSpace.{verb} takes the typed element of the sum (a carrier with blocks and with_blocks); got {type(x).__name__}"
+                f"DirectSumSpace.{verb} takes the typed element of the sum (a carrier with blocks, with_blocks and labels); got {type(x).__name__}"
             )
         blocks = tuple(x.blocks)
         if len(blocks) != len(self.summands):
@@ -313,8 +327,8 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
                 f"DirectSumSpace.{verb}: the element carries {len(blocks)} blocks but the sum has {len(self.summands)} summands {list(self.labels)} — "
                 f"the field/space pairing is inconsistent."
             )
-        labels = getattr(x, "labels", None)
-        if labels is not None and tuple(labels) != self.labels:
+        labels = x.labels
+        if tuple(labels) != self.labels:
             raise ValueError(
                 f"DirectSumSpace.{verb}: the element is labelled {list(labels)} but the sum's summands are {list(self.labels)}; "
                 f"the blocks are admitted by label, never by position."
@@ -349,12 +363,7 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         return self._on_flat(x, leg) if _is_flat(x) else self._on_blocks(x, "apply_inverse_metric", leg)
 
     def inner_product(self, x: Any, y: Any) -> float:
-        r"""The direct-sum inner product :math:`\sum_l \langle x_l, y_l\rangle_{G_l}` of two typed elements.
-
-        ELEGANCE-DEBT[guard] #666: the blocks pass their bare coordinates, so this verb asks no membership of x or y. A composite on a DUAL space
-        still labels its blocks with the primal spaces (the role of a carrier under a dual arrow is #633), so a typed block would be refused there.
-        Retires when a composite member is compared with this space by content and hands the summand verbs typed blocks.
-        """
+        r"""The direct-sum inner product :math:`\sum_l \langle x_l, y_l\rangle_{G_l}` of two typed elements (the blocks through :meth:`_blocks_of`)."""
         total = 0.0
         for (_, s), bx, by in zip(self.summands, self._blocks_of(x, "inner_product"), self._blocks_of(y, "inner_product")):
             total += s.inner_product(bx, by) if _is_sum(s) else s.inner_product(bx.values, by.values)

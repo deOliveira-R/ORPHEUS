@@ -732,6 +732,7 @@ def _block_support(
 
     raw: list[NDArray] = []
     stubs: list[tuple[int, int, float, NDArray, tuple[int, ...]]] = []
+    positions = np.arange(layout.total_size, dtype=np.intp)  # the trace's flat positions: a block's own are its view of them
     for face_name, slot in layout.blocks.items():
         axis, sign = face_normal(face_name)
         if axis not in active:
@@ -746,11 +747,9 @@ def _block_support(
                 f"so this block should never have been built (see "
                 f"`gauge_freedom`)."
             )
-        per_ordinate = int(np.prod(slot.shape[1:]))
-        per_group = int(np.prod(slot.shape[2:]))
+        face_positions = slot.slice_view(positions)  # (ordinate, group, *transverse)
         for ordinate in orbit:
-            start = slot.offset + ordinate * per_ordinate + group * per_group
-            absolute = start + np.arange(per_group, dtype=np.intp)
+            absolute = face_positions[ordinate, group].ravel()
             raw.append(absolute)
             # k = 0 at the min face, k = n_axis at the max face.
             k = 0 if sign < 0 else spatial[axis]
@@ -1028,10 +1027,7 @@ def predicted_physical_kernel(problem: "SNProblem") -> PredictedKernel:
     if not classes:
         return PredictedKernel.trivial(space, "no absorption-free closed class (every final energy class removes "
                                               "neutrons, or a face leaks)")
-    interior = tuple(int(n) for n in space.layout.blocks[BULK].shape)
-    bulk_group = np.broadcast_to(np.arange(interior[1]).reshape((1, -1) + (1,) * (len(interior) - 2)), interior).ravel()
-    trace_group = problem.angular_trace.layout.axis_index(1)
-    group = np.concatenate([bulk_group, trace_group])
+    group = space.axis_index_of_coordinates("energy")
     right: list[KernelSummand] = []
     left: list[KernelSummand] = []
     for cls in classes:

@@ -58,14 +58,15 @@ def positive_space() -> Any:
 class ToyCarrier:
     """A typed element of a sum built in a gate: the tuple of its summand elements in label order (a ``Member`` per tensor summand, a ``ToyCarrier`` per nested sum).
 
-    It implements the carriers' structural protocol of ON05-1 and nothing else: ``blocks`` and ``with_blocks``. It names no space (the sum asks no
-    membership of its operand, issue #666).
+    It implements the carriers' structural protocol of ON05-1 and ruling V1 and nothing else: ``blocks``, ``labels`` (the summand labels the element is
+    admitted by) and ``with_blocks``. It names no space (the sum asks no membership of its operand, issue #666).
     """
 
     blocks: tuple[Any, ...]
+    labels: tuple[str, ...]
 
     def with_blocks(self, blocks: tuple[Any, ...]) -> "ToyCarrier":
-        return ToyCarrier(tuple(blocks))
+        return ToyCarrier(tuple(blocks), self.labels)
 
 
 def member_of(space: Any, values: np.ndarray) -> Any:
@@ -74,16 +75,16 @@ def member_of(space: Any, values: np.ndarray) -> Any:
     return Member(values=np.asarray(values, dtype=float).reshape(space.shape), space=space)
 
 
-def toy_element(summands: tuple[Any, ...], seed: int) -> ToyCarrier:
-    """A ``ToyCarrier`` of seeded members, one per summand (a summand that is itself a tuple makes a nested ``ToyCarrier``)."""
+def toy_element(space: Any, seed: int) -> ToyCarrier:
+    """A ``ToyCarrier`` of seeded members on the sum ``space``, labelled by its labels, one block per summand (a summand that is itself a sum makes a nested ``ToyCarrier``)."""
     rng = np.random.default_rng(seed)
     blocks = []
-    for s in summands:
-        if isinstance(s, tuple):
+    for _, s in space.summands:
+        if hasattr(s, "summands"):
             blocks.append(toy_element(s, int(rng.integers(1 << 30))))
         else:
             blocks.append(member_of(s, rng.standard_normal(s.shape)))
-    return ToyCarrier(tuple(blocks))
+    return ToyCarrier(tuple(blocks), tuple(space.labels))
 
 
 def flat_of(x: Any) -> np.ndarray:

@@ -72,7 +72,7 @@ def _bound_end_of(operator: SNBoundaryOperator) -> DirectSumSpace:
     """``B_a``'s bound domain, parsed as the BLOCK-BEARING composite it must be.
 
     The narrowing is a real precondition, not typing ceremony: the rows below
-    read ``.interior_space`` off it, and a domain that is not a
+    read ``.summand("bulk")`` off it, and a domain that is not a
     ``DirectSumSpace`` carries no blocks — in which case the whole
     ``space_on``-vs-bound-end contrast this file measures is unreadable and
     the row must say so rather than crash one line later.
@@ -123,7 +123,7 @@ def test_g3_1a_b_a_accepts_a_moment_interior_composite(geometry, L):
 
     1. ``interior.space == interior.space_on(mesh)``  — today's guard's
        comparison, which must hold or the row is testing the refusal path;
-    2. ``interior.space != operator.domain.interior_space`` — the bound end's
+    2. ``interior.space != operator.domain.summand("bulk")`` — the bound end's
        interior, which must DIFFER or the row cannot distinguish ``space_on``
        semantics from ``admit_composite`` semantics and is vacuous.
 

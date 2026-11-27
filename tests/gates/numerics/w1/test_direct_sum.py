@@ -124,6 +124,11 @@ def offset_slices(source: str) -> list[int]:
     return hits
 
 
+def offset_reads(source: str) -> list[int]:
+    """The line of every read of an ``.offset`` attribute (ruling V2: no consumer reads a block's offset, it reads ``region``, ``slice_of`` or ``slice_view``)."""
+    return dp.attribute_reads(source, frozenset({"offset"}))
+
+
 def test_offsets_once() -> None:
     """G05e. ``ast`` over ``orpheus/`` (derivations excluded): the accumulator pattern ``NAME += <expr>``, ``NAME`` in {cursor, start, offset}, inside a ``for`` appears in no file but the layout
     (``numerics/coproduct_layout.py``) and ``numerics/metric.py`` (``FactoredMetric``'s slot walk, exempt by name: a tensor slot offset). The predicate reads this spelling only: a ``np.cumsum`` or
@@ -143,6 +148,13 @@ def test_offsets_once() -> None:
     _require(offset_slices("def f(buf, slot):\n    buf[slot.region] = 0\n") == [], "the offset-slice predicate reads slot.region as a hand cut")
     cuts = {p: v for p, s in dp.orpheus_sources() if (v := offset_slices(s))}
     _require(not cuts, f"{sum(len(v) for v in cuts.values())} slices bounded by a block's .offset: {cuts}")
+    # Ruling V2 widens it: no read of ``.offset`` at all outside the layout's own module (an index computed from it, ``start = slot.offset + k * stride``, is the same hand cut with no slice).
+    _require(offset_reads("def f(slot):\n    return slot.offset + 3\n") == [2], "the offset-read predicate does not read a planted index computation")
+    _require(offset_reads("def f(slot):\n    return slot.region.start\n") == [], "the offset-read predicate reads region.start as an offset read")
+    layout_home = "orpheus/numerics/coproduct_layout.py"
+    _require(bool(offset_reads(next(s for p, s in dp.orpheus_sources() if p == layout_home))), "the offset-read predicate does not read the layout's own module, a known member")
+    reads = {p: v for p, s in dp.orpheus_sources() if p != layout_home and (v := offset_reads(s))}
+    _require(not reads, f"{sum(len(v) for v in reads.values())} reads of a block's .offset outside the layout's module: {reads}")
 
 
 # ──────────────────────────────── G05f ────────────────────────────────
@@ -208,7 +220,7 @@ def test_biproduct_laws() -> None:
     _require(nested.pack({"a": inner, "d": xc}).tobytes() == flat.pack({"b": xa, "c": xb, "d": xc}).tobytes(), "(b) pack of a nested sum differs from pack of the flattened sum")
     # (c) block sums
     pair = (a, b)
-    x, y = dp.toy_element(pair, 11), dp.toy_element(pair, 12)
+    x, y = dp.toy_element(d, 11), dp.toy_element(d, 12)
     expected = sum(s.inner_product(bx, by) for s, bx, by in zip(pair, x.blocks, y.blocks))
     got = d.inner_product(x, y)
     _require(abs(got - expected) <= 1e-13 * max(abs(expected), 1.0), f"(c) inner_product of the sum {got!r} is not the sum of the summands' {expected!r}")
@@ -223,6 +235,53 @@ def test_biproduct_laws() -> None:
     _require(basis.shape == hand.shape and kernel_k.shape[1] > 0 and np.array_equal(basis, hand), f"(c) kernel_basis of the sum is not the block diagonal of the summands' (shapes {basis.shape} and {hand.shape})")
     signed = S.of(s=dp.signed_space(), a=a)
     _require(signed.negative == dp.signed_space().negative + a.negative == 1, f"(c) negative of the sum is {signed.negative}, expected the sum of the summands' (1)")
+
+
+# ──────────────────────────── V1: one door to the blocks ────────────────────────────
+
+
+def test_a_carrier_without_labels_is_refused_by_every_typed_verb() -> None:
+    """Ruling V1 (the build's verify stage, F3). A typed element reaches the sum's verbs through ``_blocks_of``, which reads ``x.labels`` directly: an object with ``blocks`` and ``with_blocks`` and NO ``labels`` is not
+    a carrier of a sum, and each typed verb (``apply_metric``, ``apply_inverse_metric``, ``inner_product`` on either operand, ``with_coordinates``, ``member``, ``coordinates_of``) refuses it by name; the same
+    blocks labelled in the sum's order are accepted (the positive control), and labelled in the swapped order are refused by label (the old swapped-block defect of the verify probe, which a ``getattr``
+    default let through). Mutation: restore ``labels = getattr(x, "labels", None)`` with the ``is not None`` guard in ``_blocks_of`` (the label-less rows and the hasattr arm redden)."""
+    S = dp.direct_sum()
+    from dataclasses import dataclass
+    from typing import Any
+
+    from orpheus.numerics.direct_sum import SumCarrier
+
+    @dataclass(frozen=True)
+    class Bare:
+        blocks: tuple[Any, ...]
+
+        def with_blocks(self, blocks: tuple[Any, ...]) -> "Bare":
+            return Bare(tuple(blocks))
+
+    a, b = _a(), _b()
+    d = S.of_pairs((("a", a), ("b", b)), carrier=SumCarrier(zeros=lambda: Bare(tuple(dp.member_of(s, np.zeros(s.shape)) for _, s in d.summands))))
+    good = dp.toy_element(d, 1)
+    bare = Bare(good.blocks)
+    flat = np.ones(d.n_coordinates)
+    verbs = {
+        "apply_metric": lambda x: d.apply_metric(x),
+        "apply_inverse_metric": lambda x: d.apply_inverse_metric(x),
+        "inner_product (first)": lambda x: d.inner_product(x, good),
+        "inner_product (second)": lambda x: d.inner_product(good, x),
+        "with_coordinates": lambda x: d.with_coordinates(x, flat),
+    }
+    refusals = {**verbs, "coordinates_of": lambda x: d.coordinates_of(x)}  # no positive control: the toy names no space, which coordinates_of reads after the door
+    for name, call in verbs.items():
+        call(good)  # the positive control: the labelled carrier is accepted by the same verb
+    for name, call in refusals.items():
+        with pytest.raises(AttributeError, match="labels"):
+            call(bare)
+    with pytest.raises(AttributeError, match="labels"):
+        d.member(flat)
+    swapped = dp.ToyCarrier((good.blocks[1], good.blocks[0]), ("b", "a"))
+    for name, call in refusals.items():
+        with pytest.raises(ValueError, match="admitted by label"):
+            call(swapped)
 
 
 # ──────────────────────────────── G05i ────────────────────────────────
@@ -314,16 +373,16 @@ def test_a_signed_summand_refuses_norm() -> None:
         ("nested", S.of(n=S.of(s=signed, a=a), p=p), ((signed, a), p)),
     ):
         _require(d.negative == 1, f"{name}: negative of the sum is {d.negative}, expected 1")
-        x = dp.toy_element(pair, 3)
+        x = dp.toy_element(d, 3)
         with pytest.raises(ValueError, match="needs a positive form"):
             d.norm(x)
     d = S.of(s=signed, a=a)
-    x = dp.toy_element((signed, a), 4)
+    x = dp.toy_element(d, 4)
     hand = float(np.sum(np.array([1.0, -1.0, 2.0]) * x.blocks[0].values.reshape(-1) ** 2) + np.sum(dp.hand_diagonal(dp.A_ARGS) * x.blocks[1].values.reshape(-1) ** 2))
     got = d.inner_product(x, x)
     _require(abs(got - hand) <= 1e-13 * max(abs(hand), 1.0), f"inner_product of the signed sum is {got!r}, the hand sum is {hand!r}")
     positive = S.of(p=p, a=a)
-    y = dp.toy_element((p, a), 5)
+    y = dp.toy_element(positive, 5)
     square = float(np.sum(np.array([1.0, 2.0, 3.0]) * y.blocks[0].values.reshape(-1) ** 2) + np.sum(dp.hand_diagonal(dp.A_ARGS) * y.blocks[1].values.reshape(-1) ** 2))
     _require(abs(positive.norm(y) - np.sqrt(square)) <= 1e-13 * np.sqrt(square), f"norm of the all-positive sum is {positive.norm(y)!r}, the hand value is {np.sqrt(square)!r}")
 

@@ -68,34 +68,27 @@ class LayoutBlock(Generic[K]):  # concept: layout | role: part | kind: set
     shape : tuple[int, ...]
         The block's shape. The flat region is reshaped to this shape (plus the
         trailing payload axes of the buffer) when sliced.
-    flat_size : int
-        Size of the block's flat region. Equals ``prod(shape)``.
 
     Attributes
     ----------
+    flat_size : int
+        Size of the block's flat region, ``prod(shape)``: a property over the shape, so no copy of it can disagree.
     offset : int
         Start index of the block's flat region in the backing buffer. It is
         ``init=False``: the owning layout derives it as the sum of the sizes
         of the blocks before this one, so a block whose offset disagrees with
         its position is unspellable (law L13: offsets are computed once).
 
-    Notes
-    -----
-    The invariant ``flat_size == prod(shape)`` is enforced at construction.
     """
 
     key: K
     shape: tuple[int, ...]
-    flat_size: int
     offset: int = field(init=False)
 
-    def __post_init__(self) -> None:
-        expected = int(np.prod(self.shape))
-        if self.flat_size != expected:
-            raise ValueError(
-                f"LayoutBlock({self.key!r}): flat_size={self.flat_size} does "
-                f"not match prod(shape={self.shape!r}) = {expected}"
-            )
+    @property
+    def flat_size(self) -> int:
+        r"""The size of the block's flat region: the product of the shape."""
+        return int(np.prod(self.shape))
 
     @property
     def region(self) -> slice:
@@ -160,11 +153,10 @@ class CoproductLayout(Generic[K]):  # concept: layout | role: arm | kind: set
         blocks: dict[K, LayoutBlock[K]] = {}
         cursor = 0
         for key, shape in pairs:
-            size = int(np.prod(shape))
-            block = LayoutBlock(key=key, shape=shape, flat_size=size)
+            block = LayoutBlock(key=key, shape=shape)
             object.__setattr__(block, "offset", cursor)
             blocks[key] = block
-            cursor += size
+            cursor += block.flat_size
         object.__setattr__(self, "blocks", blocks)
         object.__setattr__(self, "total_size", cursor)
 

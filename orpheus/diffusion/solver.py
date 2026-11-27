@@ -145,11 +145,10 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 
 from orpheus.diffusion.augmented_mesh import DiffusionMesh
-from orpheus.diffusion.operators import DiffusionBoundaryOperator, LeakageOperator, _require_trace_layout
+from orpheus.diffusion.operators import DiffusionBoundaryOperator, LeakageOperator
 from orpheus.numerics.assembled_operator import dense
 from orpheus.numerics.evidence import Measured, NotApplicable, NotYet
 from orpheus.numerics.fredholm import PredictedKernel, Solvable
-from orpheus.numerics.direct_sum import TRACE
 from orpheus.numerics.convergence import (
     IterationRecord,
     StoppingCriterion,
@@ -182,7 +181,6 @@ from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.mesh import Mesh1D
-    from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
     from orpheus.transport.boundary_conditions import BoundaryCondition
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
@@ -330,7 +328,7 @@ class DiffusionSolver:  # concept: driver | role: weld | kind: morphism | welded
         if not classes:
             return PredictedKernel.trivial(space, "no absorption-free closed class (every final energy class removes "
                                                   "neutrons, or a face leaks)")
-        group = self._group_of_each_coordinate()
+        group = space.axis_index_of_coordinates("energy")
         blocks = tuple(
             (np.flatnonzero(np.isin(group, cls.members)).astype(np.intp),
              np.flatnonzero(np.isin(group, cls.feeders)).astype(np.intp),
@@ -341,14 +339,6 @@ class DiffusionSolver:  # concept: driver | role: weld | kind: morphism | welded
             space, dense(flat_loss), blocks,
             f"the absorption-free closed classes {[c.members for c in classes]} on a closed domain",
         )
-
-    def _group_of_each_coordinate(self) -> np.ndarray:
-        r"""The energy group of every coordinate of the full field's flat chart (bulk ``(ng, *cells)``, trace ``(2, ng, ...)`` per face)."""
-        interior = self.template.interior.values.shape
-        bulk = np.broadcast_to(np.arange(interior[0]).reshape((-1,) + (1,) * (len(interior) - 1)), interior).ravel()
-        trace_space = cast("ScalarTraceSpace", self.mesh.full_field_space.summand(TRACE))
-        trace = _require_trace_layout(trace_space).axis_index(1)
-        return np.concatenate([bulk, trace])
 
     # ── Flat ↔ typed conversion ────────────────────────────────────────
 

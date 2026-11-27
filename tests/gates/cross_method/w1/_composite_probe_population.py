@@ -215,7 +215,7 @@ def capture_composite_probes() -> dict[Key, np.ndarray]:
         take(f"{name}.full_field_space", mesh.full_field_space)
         for quantity, array in _kernel_arrays(solver.predicted_kernel, "predicted_kernel").items():
             arrays[(f"{name}.solver", quantity)] = array
-        arrays[(f"{name}.solver", "group_of_each_coordinate")] = _flat(solver._group_of_each_coordinate())
+        arrays[(f"{name}.solver", "group_of_each_coordinate")] = _flat(mesh.full_field_space.axis_index_of_coordinates("energy"))
     return {k: np.ascontiguousarray(a) for k, a in arrays.items()}
 
 

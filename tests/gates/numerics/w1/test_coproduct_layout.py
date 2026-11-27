@@ -5,7 +5,7 @@ its sizes is unspellable and the "gap or overlap" refusal that policed it retire
 definitions: the expected offsets are the cumulative sums of the products of the stated shapes, and the tiling is read by counting, for each flat index, the blocks that cover it.
 
 First red: import-only at the base tip (the module ``orpheus.numerics.coproduct_layout`` does not exist before the rename). Behavioural red at the tree of commit (2) (the renamed layout with explicit
-offsets): ``LayoutBlock(offset=...)`` is accepted, and ``layout.offsets`` and ``layout.sizes`` do not exist. Mutations (described for the reviewers): make ``offset`` an init field again (the
+offsets): ``LayoutBlock(offset=...)`` is accepted (and, after ruling V3, ``flat_size=...``, a derived property), and ``layout.offsets`` and ``layout.sizes`` do not exist. Mutations (described for the reviewers): make ``offset`` an init field again (the
 explicit-offset arm reddens); start the second block one early (the tiling arm reddens). Exact on any host: integer arithmetic.
 """
 
@@ -51,5 +51,8 @@ def test_offsets_tile_exactly() -> None:
         for b in blocks:
             cover[b.offset : b.offset + b.flat_size] += 1
         _require(bool(np.all(cover == 1)), f"{pairs}: the blocks do not tile range({n}) exactly (coverage counts {np.bincount(cover).tolist()})")
-    with pytest.raises(TypeError):
-        LayoutBlock(key="a", offset=0, shape=(2,), flat_size=2)  # type: ignore[call-arg]
+    with pytest.raises(TypeError, match="offset"):
+        LayoutBlock(key="a", offset=0, shape=(2,))  # type: ignore[call-arg]
+    with pytest.raises(TypeError, match="flat_size"):
+        LayoutBlock(key="a", shape=(2,), flat_size=2)  # type: ignore[call-arg]
+    _require(LayoutBlock(key="a", shape=(2, 3)).flat_size == 6, "flat_size is not the product of the shape")

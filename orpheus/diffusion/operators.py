@@ -249,7 +249,8 @@ def _trace_dof_columns(
     ``n_interior + offset(face) + row·ng + g``. Returns the ``(ng,)`` index
     vector for all groups of that component.
     """
-    return n_interior + layout.blocks[face].offset + row * ng + np.arange(ng)
+    positions = layout.blocks[face].slice_view(np.arange(layout.total_size, dtype=np.intp))  # (component, group, *face cells): the flat position of each
+    return n_interior + positions[row].reshape(ng, -1)[:, 0]
 
 
 @dataclass(frozen=True)

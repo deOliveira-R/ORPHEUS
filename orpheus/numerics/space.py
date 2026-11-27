@@ -365,6 +365,13 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
             f"axis lookup {label!r}: {self!r} is a leaf space with no named factors. Compose the space with TensorSpace.of_axes."
         )
 
+    def axis_index_of_coordinates(self, label: str) -> NDArray:
+        r"""The index along the factor labeled ``label`` of every flat coordinate: :class:`TensorSpace` answers; a leaf has no named factors and refuses it
+        (the trace leaves override it for the one axis they know). Untagged like :meth:`axis`, its sibling: the leaf-arm set of G04o is pinned."""
+        raise TypeError(
+            f"axis index {label!r}: {self!r} is a leaf space with no named factors. Compose the space with TensorSpace.of_axes."
+        )
+
     def axis(self, label: str) -> Axis:
         r"""The axis of the factor labeled ``label``: :class:`TensorSpace` answers; a leaf has no named factors and refuses it."""
         raise TypeError(
@@ -1004,6 +1011,20 @@ class TensorSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
     def position(self, label: str) -> int:
         r"""The slot index of the factor labeled ``label``."""
         return self._axis_index(label)
+
+    def axis_index_of_coordinates(self, label: str) -> NDArray:
+        r"""The index along the factor labeled ``label`` of every flat coordinate, in the flat chart's order (an integer array of ``n_coordinates``).
+
+        The sibling of :meth:`~orpheus.numerics.coproduct_layout.CoproductLayout.axis_index` on a space: ``space.axis_index_of_coordinates("energy")`` is the
+        group of each coordinate. The factor must span one array position (an energy axis does; a 2-D spatial factor has no single index).
+        """
+        k = self._axis_index(label)
+        extent = self.factors[k].axis.shape
+        if len(extent) != 1:
+            raise ValueError(f"axis_index_of_coordinates: the factor {label!r} of {self!r} spans {len(extent)} array positions, so it has no single index")
+        position = sum(len(f.axis.shape) for f in self.factors[:k])
+        index = np.arange(extent[0]).reshape(tuple(-1 if i == position else 1 for i in range(len(self.shape))))
+        return np.broadcast_to(index, self.shape).ravel().astype(np.intp)
 
     def factor(self, label: str) -> Factor:
         r"""The factor labeled ``label``."""

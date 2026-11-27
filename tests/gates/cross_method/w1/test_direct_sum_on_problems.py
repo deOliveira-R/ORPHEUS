@@ -255,13 +255,13 @@ def test_carrier_pair_is_swapped_by_the_dual() -> None:
 
 
 def test_carrier_space_equals_builder_space() -> None:
-    """G05g. On the SN slab, box, sphere and cylinder and the diffusion slab (15 fixtures): the coupled states returned by ``_returned_state`` and ``_as_coupled`` (``sn/solver.py:710``, ``:717``) have
+    """G05g. On the SN slab, box, sphere and cylinder and the diffusion slab (15 fixtures): the coupled states returned by ``_returned_state`` and ``_as_coupled`` (``sn/solver.py``, now taking the problem and reading the labels from its sum, ruling V4) have
     ``.space == problem.system.space``; ``V.member(c)``, ``V.carrier.zeros()``, ``with_blocks`` and the restriction build ``CoupledField`` whose labels equal the space's (the formal paths cannot mismatch,
     ON05-21); ``problem.full_field_space.carrier.zeros().space == problem.full_field_space``; the coupled state ``problem.system.space.carrier.zeros().space == problem.system.space``; the restricted coupled
     field ``SystemRestrictionOperator(V, label=...).apply(z).space == r.codomain`` (addressed by label, ON05-24); the System-B field ``radial_characteristic_field_space.carrier.zeros().space ==`` the ray
     instance. Today's classes satisfy the equalities by construction (57 of 57 checks equal on the base tip: identity carries no label), so a regression row: its first red is the mutation, and its calls
     to ``carrier`` and ``label=`` are red on the base tip. Mutations: rename the label of one class constant (``FullField``'s trace label) or of the builder's coupled labels (the equality reddens on the
-    affected fixtures); swap the two builder constants at ``sn/solver.py``'s two sites (the ``_returned_state`` arm reddens)."""
+    affected fixtures); reverse the labels ``_returned_state`` reads from the hub's sum (the ``_returned_state`` arm reddens)."""
     from orpheus.numerics.coupled_system import SystemRestrictionOperator
     from orpheus.sn.solver import _as_coupled, _returned_state
 
@@ -276,10 +276,10 @@ def test_carrier_space_equals_builder_space() -> None:
         _require(z.labels == V.labels and z.with_blocks(z.blocks).labels == V.labels and z.with_blocks(z.blocks).space == V, f"{name}: zeros or with_blocks lost the labels")
         ray = None if ray_space is None else ray_space.carrier.zeros()
         _require(ray is None or ray.space == ray_space, f"{name}: the ray field's zero does not live on the ray instance")
-        state = _returned_state(field_space.carrier.zeros(), ray)
-        _require(state.space == V and _as_coupled(state).space == V, f"{name}: _returned_state or _as_coupled returns a state on another space than the hub's")
+        state = _returned_state(problem, field_space.carrier.zeros(), ray)
+        _require(state.space == V and _as_coupled(problem, state).space == V, f"{name}: _returned_state or _as_coupled returns a state on another space than the hub's")
         if len(V.labels) == 1:
-            _require(_as_coupled(field_space.carrier.zeros()).space == V, f"{name}: _as_coupled of a bare composite is not on the one-summand coupled space")
+            _require(_as_coupled(problem, field_space.carrier.zeros()).space == V, f"{name}: _as_coupled of a bare composite is not on the one-summand coupled space")
         for label in V.labels:
             restriction = SystemRestrictionOperator(V, label=label)
             restricted = restriction.apply(z)

@@ -47,6 +47,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Mapping, Optional, Sequence
 
 import numpy as np
+from numpy.typing import NDArray
 
 from orpheus.numerics.coproduct_layout import CoproductLayout
 from orpheus.numerics.space import FunctionSpace
@@ -91,15 +92,26 @@ class ScalarTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: sp
         default=None, kw_only=True, repr=False, compare=False,
     )
 
+    #: The group axis of every face slot (axis 1; axis 0 is the component or the ordinate).
+    GROUP_AXIS: ClassVar[int] = 1
+
+    def axis_index_of_coordinates(self, label: str) -> NDArray:
+        r"""The group of every flat coordinate of the trace, the answer to the label ``"energy"`` (the faces' own axes carry no labels)."""
+        # ELEGANCE-DEBT[guard] #759 legacy-leaf: a trace leaf has no labelled factors, so it answers the one axis it knows by convention; retires at N07,
+        # when the trace is a tensor space whose group factor is labelled.
+        if label != "energy":
+            raise ValueError(f"axis_index_of_coordinates: a trace space has the axis 'energy' only; got {label!r}")
+        return self._layout().axis_index(self.GROUP_AXIS)
+
+    def _layout(self) -> CoproductLayout[str]:
+        if self.layout is None:
+            raise RuntimeError("ScalarTraceSpace has no CoproductLayout; build it via ScalarTraceSpace.for_faces, not the bare constructor.")
+        return self.layout
+
     @property
     def face_names(self) -> tuple[str, ...]:
         """Ordered face names (flat-buffer concatenation order)."""
-        if self.layout is None:
-            raise RuntimeError(
-                "ScalarTraceSpace has no CoproductLayout; build it via "
-                "ScalarTraceSpace.for_faces, not the bare constructor."
-            )
-        return tuple(self.layout.blocks)
+        return tuple(self._layout().blocks)
 
     @classmethod
     def for_faces(

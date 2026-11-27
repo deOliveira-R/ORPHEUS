@@ -303,7 +303,7 @@ def _solve(sn: SNProblem, inner: str, **kw):
     from orpheus.numerics.evidence import NotApplicable
     from orpheus.numerics.posing import SourcePosing
     from orpheus.sn.solver import _SWEPT, _as_coupled
-    posing = SourcePosing.of_pencil(sn.pencil, 0.0, _as_coupled(q))
+    posing = SourcePosing.of_pencil(sn.pencil, 0.0, _as_coupled(sn, q))
     return driver(
         solver, sn, q, 0.0, 2000, 1e-13,
         posing=posing,

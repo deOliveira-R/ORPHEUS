@@ -7,7 +7,7 @@ fixtures (21 full fields, 12 coupled spaces, 6 of them System B ray instances re
 ``inner_product``, ``norm``, the member round trip; and the additions of ON05-22: a lifted full field (the moment bulk of ``angular_lift.py``, the codomain of
 ``BulkAnalysisOperator``) on the slab and the box, a ``TimedFullField`` with one frame in its history, the kernels of the loss-kernel gauge through its hand slices of the
 bulk size (the harness's 12 SN fixtures all predict an empty kernel, 0 summands, so two all-specular 2-D boxes are built by the population builder on which both predictors answer: 112 arrays), the
-diffusion solver's predicted kernel (0 summands on the 3 fixtures: the count rows only) and ``_group_of_each_coordinate`` of the diffusion solver. It is re-taken by no one before N10.
+diffusion solver's predicted kernel (0 summands on the 3 fixtures: the count rows only) and the group of each coordinate of the diffusion solver's full field (taken then by the solver's own method, now by ``full_field_space.axis_index_of_coordinates("energy")``). It is re-taken by no one before N10.
 
 Host-keyed: the arrays pass through LAPACK, so the stored bytes are compared on the stamped host and the gate FAILS on a foreign stamp with both stamps in the message
 (a skip would be a silent green); it is not in the CI step. GREEN at the base tip by construction (the record is the base's, two captures byte-equal); the input that

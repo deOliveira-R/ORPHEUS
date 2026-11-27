@@ -123,7 +123,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -408,6 +408,17 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
                 "not optional on a boundary trace)."
             )
         return weights
+
+    #: The group axis of every face slot (axis 1; axis 0 is the component or the ordinate).
+    GROUP_AXIS: ClassVar[int] = 1
+
+    def axis_index_of_coordinates(self, label: str) -> NDArray:
+        r"""The group of every flat coordinate of the trace, the answer to the label ``"energy"`` (the faces' own axes carry no labels)."""
+        # ELEGANCE-DEBT[guard] #759 legacy-leaf: a trace leaf has no labelled factors, so it answers the one axis it knows by convention; retires at N07,
+        # when the trace is a tensor space whose group factor is labelled.
+        if label != "energy":
+            raise ValueError(f"axis_index_of_coordinates: a trace space has the axis 'energy' only; got {label!r}")
+        return self.layout.axis_index(self.GROUP_AXIS)
 
     @property
     def face_names(self) -> tuple[str, ...]:

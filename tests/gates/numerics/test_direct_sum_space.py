@@ -127,7 +127,7 @@ class _Leaf:
 
 @dataclasses.dataclass(frozen=True)
 class _Composite:
-    """A minimal carrier double: two frozen leaves and the ``blocks`` and ``with_blocks`` accesses the sum's legs read and rebuild through."""
+    """A minimal carrier double: two frozen leaves and the ``blocks``, ``labels`` and ``with_blocks`` accesses the sum's legs read and rebuild through."""
 
     interior: _Leaf
     boundary: _Leaf
@@ -135,6 +135,10 @@ class _Composite:
     @property
     def blocks(self):
         return (self.interior, self.boundary)
+
+    @property
+    def labels(self):
+        return (BULK, TRACE)
 
     def with_blocks(self, blocks):
         return _Composite(*blocks)
