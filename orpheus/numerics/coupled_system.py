@@ -291,9 +291,9 @@ class CoupledField:  # concept: member | role: weld | kind: element.member | wel
                 "coupled field carries no state."
             )
         if __debug__:
-            if not isinstance(self.labels, tuple) or len(self.labels) != len(self.systems):
+            if not isinstance(self.labels, tuple) or len(self.labels) != len(self.systems) or len(set(self.labels)) != len(self.labels):
                 raise ValueError(
-                    f"CoupledField: labels must be a tuple with one label per system; got {self.labels!r} "
+                    f"CoupledField: labels must be a tuple with one distinct label per system; got {self.labels!r} "
                     f"for {len(self.systems)} systems."
                 )
         for i, member in enumerate(self.systems):

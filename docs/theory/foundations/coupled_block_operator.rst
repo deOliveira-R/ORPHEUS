@@ -441,7 +441,7 @@ wraps the result in a
 (the structure-keyed direct solve, below). The offsets ARE the block
 structure — the block law's offsets are those
 :func:`scipy.sparse.block_array` derives from the blocks' shapes, which coincide with
-:attr:`DirectSumSpace.slice_of
+:meth:`DirectSumSpace.slice_of
 <orpheus.numerics.direct_sum.DirectSumSpace.slice_of>` because both are cumulative sums of
 the same summand sizes in label order, the same layout
 :meth:`CoupledField.to_flat` packs. Because :class:`CoupledField` itself
@@ -534,7 +534,7 @@ For each member :math:`i`:
    zero of the whole coupled space.
 
 On the flat layout a coupled field packs (the member offsets
-:attr:`DirectSumSpace.slice_of
+:meth:`DirectSumSpace.slice_of
 <orpheus.numerics.direct_sum.DirectSumSpace.slice_of>`), :math:`r_i`
 is the gather over the contiguous index block :math:`S_i` of member
 :math:`i`, and :math:`\iota_i` is its scatter: the trace restriction pair
@@ -543,7 +543,7 @@ the production restriction and a
 :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` built on
 ``space.slice_of(label)`` agree under ``np.array_equal`` in 200 of 200 draws, for
 both members and in both directions, while the gather over the block
-shifted by one row disagrees (``sysres_probe4.py``). What the coupled class
+shifted by one row disagrees (re-measured 2026-11-27 by ``scratch/ontology/w1/open/N05/check/post4/probe4_port.py``, untracked, a port of the 2026-09-22 ``sysres_probe4.py`` to the labelled layout). What the coupled class
 adds over the flat gather is typing: its ends are coupled spaces and its
 values are member fields.
 
@@ -558,7 +558,8 @@ adds:
    computed by nothing: no production code forms a sum of iota_i r_i or
    compares r_i.H with iota_i, so the label carries a declared
    no-implementation (below). Gated: the split law r_1 iota_1 = id and the
-   idempotence of iota_1 r_1 on the FIRST member (the code's system=0), by
+   idempotence of iota_1 r_1 on the FIRST member (the label s0, the tests'
+   system=0), by
    the foundation tests of TestSystemRestriction
    (tests/gates/numerics/test_coupled_operator.py), on toy members. Since
    2026-09-22 every law is gated on BOTH members (system=0 and system=1)
@@ -656,8 +657,7 @@ deliberately wrong reading that must fail
 metric routing, the whole table was re-measured on the same fixture, seeds and
 controls by a port of those probes to the labelled API
 (``scratch/ontology/w1/open/N05/post4/probe_laws.py``, untracked): every row reads as
-below, except that the bitwise count of ``r.H`` for System B moved from 7 to 6 of
-200, which the last row states.
+below; the bitwise count of ``r.H`` for System B in the last row is that re-measurement's (the 2026-09-22 reading was 7 of 200).
 
 .. list-table:: The laws of the system restriction, measured on the fixture
    :header-rows: 1
@@ -688,7 +688,7 @@ below, except that the bitwise count of ``r.H`` for System B moved from 7 to 6 o
        :math:`7.3\times10^{-3}` for System A and :math:`7.3\times10^{-2}`
        for System B); ``r.H`` against ``r.apply_transpose`` differs by at
        most :math:`2.6\times10^{-16}` relative, and is bitwise equal in 0
-       of 200 draws for System A and 6 of 200 for System B (7 of 200 before the direct-sum unit): the round-off
+       of 200 draws for System A and 6 of 200 for System B: the round-off
        of :math:`G_i^{+} G_i v`, not a different map
 
 **Why extension by zero, and why one class.** The first law makes
@@ -795,7 +795,7 @@ first summand gives :math:`r_1`):
 parsed) and 13 in ``tests/`` (1049 files), 10 in
 ``tests/gates/numerics/test_coupled_operator.py`` and 3 in
 ``tests/gates/cross_method/w1/test_direct_sum_on_problems.py``; the same census finds 6
-``CoupledOperator(...)`` call sites in ``orpheus/`` (the 2026-09-22 census found 1, 3 and 6). The production site is
+``CoupledOperator(...)`` call sites in ``orpheus/``. The production site is
 :func:`~orpheus.sn.coupled_system.build_within_group_system`, which poses
 the fission operator on a carrying mesh as the composition
 :eq:`sn-posed-production-carrying`, :math:`[\,[F], [E_F]\,] \circ r_1`. The

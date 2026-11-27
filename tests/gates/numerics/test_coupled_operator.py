@@ -1415,7 +1415,8 @@ class TestSystemRestriction:
 
     def test_apply_transpose_admits_by_the_codomains_label(self) -> None:
         """Z1: the extension by zero admits its argument through the codomain's ``admit_labels``, as ``apply`` does through the domain's: a one-member field labelled
-        otherwise than the restricted summand is a ``ValueError``. Reds when ``apply_transpose`` checks the arity only."""
+        otherwise than the restricted summand is a ``ValueError`` from the admission. Reds when the admission is removed: the read by label behind it then refuses
+        with a ``KeyError``, which is not the error this row expects, so the row pins WHICH door refuses."""
         _, r = _restriction_pair()
         y = CoupledField(systems=(_GammaField(values=np.ones(3)),), labels=r.codomain.labels)
         assert r.apply_transpose(y).labels == ("s0", "s1")  # the positive control: the codomain's label is admitted

@@ -107,6 +107,8 @@ from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Observable, Po
 from orpheus.numerics.evidence import Evidence, Measured, NotApplicable
 from orpheus.numerics.outcome import EigenOutcome, ExitReport, SourceOutcome
 
+from .coupled_system import SYSTEM_A_LABEL, SYSTEM_B_LABEL
+
 if TYPE_CHECKING:
     from .problem import SNProblem
     from .splitting import Splitting
@@ -249,16 +251,17 @@ class SolutionBase(Generic[O]):  # concept: solution | role: head | kind: record
         the eigen/adjoint tail stripped them to the cell average while the
         fixed-source arms kept them — two conventions for one member).
         """
-        return cast("TimedFullField", self.state.system(self.problem.system.space.labels[0]))
+        return cast("TimedFullField", self.state.system(SYSTEM_A_LABEL))
 
     @property
     def radial_characteristic(self) -> "RadialCharacteristicField | None":
         r"""System B's converged ψ½ state on a carrying (R12a) Problem — the state's
-        second member; ``None`` exactly when the state has one system.  Presence
-        is the state's ARITY: no wiring guard is needed to keep it honest."""
-        if self.state.n_systems == 1:
+        member labelled :data:`~orpheus.sn.coupled_system.SYSTEM_B_LABEL`; ``None`` exactly when
+        the state carries no such label.  Presence is the state's own LABELS: no wiring guard is
+        needed to keep it honest."""
+        if SYSTEM_B_LABEL not in self.state.labels:
             return None
-        return cast("RadialCharacteristicField", self.state.system(self.problem.system.space.labels[1]))
+        return cast("RadialCharacteristicField", self.state.system(SYSTEM_B_LABEL))
 
     @property
     def boundary_flux(self) -> "AngularBoundaryFlux":

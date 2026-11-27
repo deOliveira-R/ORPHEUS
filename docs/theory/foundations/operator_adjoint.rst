@@ -358,9 +358,12 @@ the three metric primitives to dispatch **per block**:
 .. code-block:: python
 
    def apply_metric(self, x):            # G ⊙ x
-       return self._on_blocks(x, "apply_metric", lambda s, v: s.apply_metric(v))
+       leg = lambda s, v: s.apply_metric(v)
+       return self._on_flat(x, leg) if _is_flat(x) else self._on_blocks(x, "apply_metric", leg)
 
-Each override splits the composite field into its blocks (``blocks``, in label order),
+The same leg serves both charts: the flat coordinates are cut by the layout
+(``_on_flat``), the typed element by its own blocks (``_on_blocks``). On the typed chart
+each override splits the composite field into its blocks (``blocks``, in label order),
 routes each to its summand's metric method, and rebuilds the composite
 (``with_blocks``). This is a **pure Pattern-2 composition**: the
 direct-sum space owns only the *structure* (how to split and recombine);
