@@ -34,6 +34,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from functools import cached_property
+from collections.abc import Sequence
 from typing import Any, Callable, Optional, TypeIs
 
 import numpy as np
@@ -201,11 +202,17 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         except KeyError:
             raise KeyError(f"{label!r} is not a summand label; the labels are {list(self.labels)}") from None
 
-    def labels_holding(self, space: FunctionSpace) -> tuple[str, ...]:
-        r"""The labels of the summands whose space equals ``space``, in order: the labels a field living on ``space`` carries when it is lifted onto this sum
-        as a sum of its own (one system, the one summand it is). On a one-summand sum of that space this is :attr:`labels`; on a larger sum it is a proper
-        part, so the lifted field's space is another sum than this one and the question that compares the two refuses it by name."""
-        return tuple(label for label, s in self.summands if s == space)
+    def label_holding(self, space: FunctionSpace) -> str:
+        r"""The label of the one summand whose space equals ``space``: the label a field living on ``space`` carries when it is lifted onto this sum as a one-system
+        element. A lookup, as :meth:`summand` is: a ``ValueError`` by name when ``space`` is the space of no summand or of several, because the caller is posing a field on
+        a space this sum does not hold (pose q on the operator's ends)."""
+        labels = [label for label, s in self.summands if s == space]
+        if len(labels) != 1:
+            raise ValueError(
+                f"DirectSumSpace.label_holding: {space!r} is the space of {len(labels)} summands of {self!r} (the labels are {list(self.labels)}), "
+                f"not of exactly one — pose q on the operator's ends."
+            )
+        return labels[0]
 
     def leaf(self, *path: str) -> FunctionSpace:
         r"""The summand at a nested label path: ``leaf("a", "b")`` is ``summand("a").summand("b")``."""
@@ -336,7 +343,7 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         self.admit_labels(x.labels, f"DirectSumSpace.{verb}")
         return blocks
 
-    def admit_labels(self, labels: Any, owner: str) -> None:
+    def admit_labels(self, labels: Sequence[str], owner: str) -> None:
         r"""The one comparison of an element's labels with the sum's: the elements of a sum are admitted by label, never by position. A refusal is a ``ValueError`` naming ``owner``,
         the two label tuples and the rule; the typed verbs of the sum and the two doors of the coupled operators (``CoupledOperator`` and ``SystemRestrictionOperator``) all call it."""
         if tuple(labels) != self.labels:
@@ -479,7 +486,7 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         block through :func:`with_values`. This is the one place a flat chart is cut into the blocks of an element whose members carry spaces (law L13): the cut is the layout's, and ``Composite._from_flat`` is written over it. ``CoupledField.from_flat`` is the one other cut: it
         cuts by its members' own flat sizes and delegates each piece to the member's ``from_flat``, because a member of the ravellable protocol need not carry a space.
         """
-        flat = np.asarray(coordinates, dtype=float).ravel()
+        flat = np.asarray(coordinates)
         if flat.size != self.n_coordinates:
             raise ValueError(
                 f"DirectSumSpace.with_coordinates: flat.size = {flat.size} but the sum has {self.n_coordinates} coordinates ({list(self.labels)} of sizes {self.layout.sizes})"

@@ -293,7 +293,7 @@ def test_carrier_space_equals_builder_space() -> None:
 
 def test_a_bare_lift_on_a_carrying_hub_is_posed_on_its_own_summand_and_refused_by_the_posing() -> None:
     """G05g, the lift (ruling X1 of the second post-verify pass). On the six carrying fixtures (the sphere and the cylinder at three group counts), a bare composite lifted onto the hub's sum
-    by ``_as_coupled`` and by ``_returned_state`` without a ray is the field it is: one system under ONE label, the label of the one summand whose space equals the field's (``labels_holding``), so its
+    by ``_as_coupled`` and by ``_returned_state`` without a ray is the field it is: one system under ONE label, the label of the one summand whose space equals the field's (``label_holding``), so its
     ``.space`` is a one-summand sum that is not the hub's; ``problem.source_posing`` over the bare field and ``SourcePosing.of_pencil`` over ``_as_coupled`` each refuse it with a ``ValueError`` that
     names the operator's ends (the base tip's refusal, ``numerics/posing.py``), under ``-O``. Mutation: read ``V.labels`` whole at the lift (``labels=problem.system.space.labels`` in ``_as_coupled``): the
     field has 1 system and 2 labels, its ``.space`` is not a one-summand sum, and the refusal is a ``zip`` error, so this row reddens. Exact on any host: spaces and refusals."""
@@ -308,13 +308,34 @@ def test_a_bare_lift_on_a_carrying_hub_is_posed_on_its_own_summand_and_refused_b
         bare = problem.full_field_space.carrier.zeros()
         for kind, lifted in (("_as_coupled", _as_coupled(problem, bare)), ("_returned_state", _returned_state(problem, bare, None))):
             _require(len(lifted.systems) == 1 and len(lifted.labels) == 1, f"{name}: {kind} of a bare field has {len(lifted.systems)} systems and {len(lifted.labels)} labels, expected 1 and 1")
-            _require(lifted.labels == V.labels_holding(bare.space), f"{name}: {kind} labels the bare field {list(lifted.labels)}, not by the summand it lives on")
+            _require(lifted.labels == (V.label_holding(bare.space),), f"{name}: {kind} labels the bare field {list(lifted.labels)}, not by the summand it lives on")
             _require(lifted.space != V, f"{name}: {kind} of a bare field is on the hub's own sum")
         for kind, posing in (("source_posing", lambda: problem.source_posing(bare)), ("of_pencil", lambda: SourcePosing.of_pencil(problem.pencil, 1.0, _as_coupled(problem, bare)))):
             with pytest.raises(ValueError, match="pose q on the operator's ends"):
                 posing()
         seen += 1
     _require(seen == 6, f"the lift row ran on {seen} carrying fixtures, expected 6")
+
+
+def test_a_foreign_field_is_refused_by_name_under_minus_o() -> None:
+    """G05g, the lookup (ruling Y2 of the third post-verify pass). A field of another problem (the slab at 3 groups) lifted and posed on three hubs that do not hold its space (the slab, the box and the sphere at 2 groups)
+    is refused by ``SourcePosing`` with a ``ValueError`` that names the operator's ends, 3 of 3, as at the base tip; and ``DirectSumSpace.label_holding`` itself refuses, by name and with the same fragment, a space that no summand
+    has (zero matches) and a space that two summands have (two matches), under ``-O``. Mutation: read the labels whole (``labels=problem.system.space.labels``) at the lift: the refusal is a ``zip`` error on the
+    sphere hub, and this row reddens. Exact on any host: spaces and refusals."""
+    foreign = fx.sn_problem("slab", 3)[0].full_field_space.zero()
+    seen = 0
+    for kind in ("slab", "box", "sphere"):
+        problem = fx.sn_problem(kind, 2)[0]
+        with pytest.raises(ValueError, match="pose q on the operator's ends"):
+            problem.source_posing(foreign)
+        seen += 1
+    _require(seen == 3, f"the foreign-field row ran on {seen} hubs, expected 3")
+    V = fx.sn_problem("slab", 2)[0].system.space
+    with pytest.raises(ValueError, match="pose q on the operator's ends"):
+        V.label_holding(foreign.space)
+    twin = dp.direct_sum().of(x=V.summand(V.labels[0]), y=V.summand(V.labels[0]))
+    with pytest.raises(ValueError, match="pose q on the operator's ends"):
+        twin.label_holding(V.summand(V.labels[0]))
 
 
 def test_coupled_births_take_the_hubs_labels() -> None:

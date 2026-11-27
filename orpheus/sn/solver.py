@@ -710,7 +710,7 @@ def _returned_state(
             _history=(), history_depth=2,
         )
     if ray is None:
-        return CoupledField(systems=(member,), labels=problem.system.space.labels_holding(member.space))
+        return CoupledField(systems=(member,), labels=(problem.system.space.label_holding(member.space),))
     return CoupledField(systems=(member, ray), labels=problem.system.space.labels)
 
 
@@ -718,7 +718,7 @@ def _as_coupled(problem: "SNProblem", field: "FullField | TimedFullField | Coupl
     r"""A source or state on the hub's coupled carrier: a bare (seedless) composite
     is the ONE-system coupled field; a coupled one is itself.  The same lift the
     hub's ``source_posing`` applies — a posing lives on the pencil's ends."""
-    return field if isinstance(field, CoupledField) else CoupledField(systems=(field,), labels=problem.system.space.labels_holding(field.space))
+    return field if isinstance(field, CoupledField) else CoupledField(systems=(field,), labels=(problem.system.space.label_holding(field.space),))
 
 
 #: Either flavour of the System-A composite — both carry a ``.boundary``.

@@ -427,7 +427,7 @@ fingerprint = "blake2b:725ea045dfae6e88464431dcbd7f312612b20de7a5948495107f0c4ca
 
 [[seed]]
 class = "orpheus/sn/problem.py::SNProblem"
-fingerprint = "blake2b:9d92c1df3b424348b79403d07463488c0f0dff74af375cd60b14068ed0391d8b"
+fingerprint = "blake2b:9f5e9c8be42973d08513f884321ffbd2ae99858e7138c88071d3769d82093584"
 
 [[seed]]
 class = "orpheus/sn/solution.py::Solution"

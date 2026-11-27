@@ -32,6 +32,8 @@ tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import pytest
 
@@ -44,6 +46,7 @@ from orpheus.geometry.deck import MirrorDeck
 from orpheus.mesh import CellEdges, Mesher
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
+from orpheus.numerics.direct_sum import BULK, TRACE
 from orpheus.transport.full_field import Composite, FullField
 
 pytestmark = pytest.mark.foundation
@@ -95,6 +98,19 @@ def _scalar_composite(mesh: MaterialMesh, seed: int) -> "Composite":
     )
 
 
+@dataclass(frozen=True, kw_only=True)
+class _Labelled(Composite):
+    """A concrete class of the generic base: it names the sum its elements belong to (``LABELS``), so it has a space and an inverse flat chart. The bare base names none."""
+
+    LABELS = (BULK, TRACE)
+
+
+def _labelled_composite(mesh: MaterialMesh, seed: int) -> "_Labelled":
+    """The scalar composite of ``_scalar_composite`` on the labelled class: the element of a sum."""
+    base = _scalar_composite(mesh, seed)
+    return _Labelled(interior=base.interior, boundary=base.boundary)
+
+
 # ── The type is a pure Composite (multi-instantiation / structural) ──
 
 
@@ -115,16 +131,7 @@ def test_pure_composite_has_no_ray_slot(mesh) -> None:
 
 def test_mesh_reads_off_either_leaf(mesh) -> None:
     """The composite's space is derived from its blocks and the class constant ``LABELS`` of its concrete class: the generic base has no labels, so a class that names them does."""
-    from dataclasses import dataclass
-
-    from orpheus.numerics.direct_sum import BULK, TRACE
-
-    @dataclass(frozen=True, kw_only=True)
-    class _Labelled(Composite):
-        LABELS = (BULK, TRACE)
-
-    base = _scalar_composite(mesh, 0)
-    c = _Labelled(interior=base.interior, boundary=base.boundary)
+    c = _labelled_composite(mesh, 0)
     assert c.space == scalar_full_field_space(mesh)
 
 
@@ -211,17 +218,25 @@ def test_to_flat_layout_is_interior_then_boundary(mesh) -> None:
 
 
 def test_from_flat_roundtrip_is_exact(mesh) -> None:
-    a = _scalar_composite(mesh, 11)
+    """The round trip of an element of a sum: the class that names its sum (``_Labelled``) has the space whose chart ``from_flat`` inverts."""
+    a = _labelled_composite(mesh, 11)
     back = Composite.from_flat(a.to_flat(), a)
-    assert isinstance(back, Composite) and not isinstance(back, FullField)
+    assert type(back) is _Labelled
     np.testing.assert_array_equal(back.interior.values, a.interior.values)
     np.testing.assert_array_equal(back.boundary.values, a.boundary.values)
 
 
 def test_from_flat_rejects_wrong_size(mesh) -> None:
-    a = _scalar_composite(mesh, 12)
+    a = _labelled_composite(mesh, 12)
     with pytest.raises(ValueError, match="flat.size"):
         Composite.from_flat(a.to_flat()[:-1], a)
+
+
+def test_the_bare_base_has_no_inverse_chart(mesh) -> None:
+    """The generic base names no sum (``LABELS`` has no value), so it has no space and no chart to invert: its ``from_flat`` is an ``AttributeError`` naming ``LABELS``."""
+    a = _scalar_composite(mesh, 13)
+    with pytest.raises(AttributeError, match="LABELS"):
+        Composite.from_flat(a.to_flat(), a)
 
 
 # ── copy / partner discipline ──
